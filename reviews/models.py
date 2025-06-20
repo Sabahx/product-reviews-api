@@ -20,7 +20,8 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} - {self.rating}"
-#التحسينات
+
+# Advanced Features
 class ReviewComment(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(User, on_delete=models.CASCADE)

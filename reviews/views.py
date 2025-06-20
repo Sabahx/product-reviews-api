@@ -50,3 +50,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticatedOrReadOnly()]
+    
+    @action(detail=True, methods=['get'])
+    def reviews(self, request, pk=None):
+        product = self.get_object()
+        reviews = product.reviews.filter(visible=True)
+        serializer = ReviewSerializer(reviews, many=True, context={'request': request})
+        return Response(serializer.data)
