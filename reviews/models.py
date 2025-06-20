@@ -20,3 +20,29 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} - {self.rating}"
+#التحسينات
+class ReviewComment(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "comment on the review"
+        verbose_name_plural = "comments on the reviews"
+    
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.review}"
+class ReviewVote(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='votes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    helpful = models.BooleanField()  # True for helpful, False for not helpful
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['review', 'user']
+        verbose_name = "Vote on the review"
+        verbose_name_plural = "Votes on reviews"
+    
+    def __str__(self):
+        return f"{self.user.username} voted {'helpful' if self.helpful else 'not helpful'} for {self.review}"
