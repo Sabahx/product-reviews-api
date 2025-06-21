@@ -1,0 +1,92 @@
+{% extends 'admin_dashboard/base.html' %}
+{% block title %}المراجعات – لوحة التحكم{% endblock %}
+
+{% block content %}
+  <div class="bg-white p-6 rounded-xl shadow">
+
+    <h2 class="text-2xl font-semibold mb-4">المراجعات</h2>
+
+    <!-- نموذج البحث والفلترة -->
+    <form method="get" class="flex flex-wrap gap-4 items-center mb-6">
+      <input
+        type="text"
+        name="search"
+        placeholder="ابحث في النص..."
+        value="{{ request.GET.search }}"
+        class="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring"
+      />
+      <select
+        name="rating"
+        class="px-4 py-2 border rounded focus:outline-none focus:ring"
+      >
+        <option value="">كل التقييمات</option>
+        {% for i in "12345" %}
+          <option value="{{ i }}" {% if request.GET.rating == i %}selected{% endif %}>
+            {{ i }} نجمة
+          </option>
+        {% endfor %}
+      </select>
+      <button
+        type="submit"
+        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+      >
+        تطبيق
+      </button>
+    </form>
+
+    <!-- جدول العرض -->
+    <div class="overflow-x-auto">
+      <table class="w-full table-auto border-collapse">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-4 py-2 border-b">#</th>
+            <th class="px-4 py-2 border-b">المستخدم</th>
+            <th class="px-4 py-2 border-b">المنتج</th>
+            <th class="px-4 py-2 border-b">التقييم</th>
+            <th class="px-4 py-2 border-b">النص</th>
+            <th class="px-4 py-2 border-b">موافق عليه</th>
+            <th class="px-4 py-2 border-b">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rev in reviews %}
+            <tr class="hover:bg-gray-100">
+              <td class="px-4 py-2 border-b">{{ rev.id }}</td>
+              <td class="px-4 py-2 border-b">{{ rev.user.username }}</td>
+              <td class="px-4 py-2 border-b">{{ rev.product.name }}</td>
+              <td class="px-4 py-2 border-b">{{ rev.rating }}</td>
+              <td class="px-4 py-2 border-b">{{ rev.text|truncatechars:50 }}</td>
+              <td class="px-4 py-2 border-b">
+                {% if rev.visible %}
+                  <span class="text-green-600 font-medium">نعم</span>
+                {% else %}
+                  <span class="text-red-600 font-medium">لا</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-2 border-b space-x-2">
+                {% if not rev.visible %}
+                  <a href="{% url 'admin_dashboard:review_approve' rev.id %}"
+                     class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                    موافقة
+                  </a>
+                {% else %}
+                  <a href="{% url 'admin_dashboard:review_reject' rev.id %}"
+                     class="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition">
+                    رفض
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="px-4 py-6 text-center text-gray-500">
+                لا توجد مراجعات لعرضها
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+{% endblock %}

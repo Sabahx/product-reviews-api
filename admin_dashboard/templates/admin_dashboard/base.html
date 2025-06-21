@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>{% block title %}موقعي{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+      <!-- عرض الـ flash messages -->
+  {% if messages %}
+    <div class="container mx-auto px-4 py-2">
+      {% for msg in messages %}
+        <div
+          class="mb-2 px-4 py-2 rounded {{ msg.tags|default:'bg-gray-200' }} text-white">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <nav class="bg-white shadow mb-6">
+    <div class="container mx-auto px-4 py-3 flex justify-between">
+      <a href="/" class="font-bold text-lg">الرئيسية</a>
+      <div>
+        {% if user.is_authenticated %}
+          <span class="ml-4">مرحبًا {{ user.username }}</span>
+          <a href="{% url 'accounts:logout' %}" class="text-red-600">خروج</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="mx-2">دخول</a>
+          <a href="{% url 'accounts:signup' %}" class="mx-2">تسجيل</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+  <main class="container mx-auto px-4">{% block content %}{% endblock %}</main>
+</body>
+</html>
