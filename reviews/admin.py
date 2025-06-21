@@ -10,6 +10,7 @@ class ReviewAdmin(admin.ModelAdmin):
     list_display = ['product', 'user', 'rating', 'visible', 'created_at']
     list_filter = ['visible', 'rating']
     search_fields = ['review_text', 'user__username']
+<<<<<<< HEAD
 
 from .models import Notification
 
@@ -17,3 +18,5 @@ from .models import Notification
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ['user', 'message', 'is_read', 'created_at']
     list_filter  = ['is_read']
+=======
+>>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50

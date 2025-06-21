@@ -1,7 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
+<<<<<<< HEAD
 from django.contrib.auth import get_user_model
 User = get_user_model()
+=======
+>>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
@@ -36,7 +39,10 @@ class ReviewComment(models.Model):
     
     def __str__(self):
         return f"Comment by {self.user.username} on {self.review}"
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class ReviewVote(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='votes')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -50,6 +56,7 @@ class ReviewVote(models.Model):
     
     def __str__(self):
         return f"{self.user.username} voted {'helpful' if self.helpful else 'not helpful'} for {self.review}"
+<<<<<<< HEAD
 
 class Notification(models.Model):
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -60,3 +67,5 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.message}"
+=======
+>>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50

@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'admin_dashboard',
     'django_filters',
     'accounts',
-
 ]
 
 MIDDLEWARE = [
