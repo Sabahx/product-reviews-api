@@ -1,0 +1,48 @@
+{% extends 'user_dashboard/base.html' %}
+{% block title %}الرئيسية - متجر المنتجات{% endblock %}
+
+{% block content %}
+<h1 class="mb-4 text-center">جميع المنتجات</h1>
+
+<div class="d-flex flex-column gap-4">
+  {% for p in products %}
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <!-- اسم المنتج -->
+        <h5 class="card-title">{{ p.name }}</h5>
+        <!-- وصف مختصر -->
+        <p class="card-text text-muted">
+          {{ p.description|truncatechars:150 }}
+        </p>
+        <!-- السعر -->
+        <p>
+          <span class="badge bg-success">
+            السعر: {{ p.price|floatformat:2 }} USD
+          </span>
+        </p>
+        <!-- زر التفاصيل -->
+        <a href="{% url 'user_dashboard:product_detail' p.pk %}"
+           class="btn btn-outline-primary btn-sm">
+          عرض التفاصيل
+        </a>
+      </div>
+      <div class="card-footer bg-white border-top">
+        <!-- عدد المراجعات المعتمدة -->
+        {% with p.approved_reviews|length as cnt %}
+          <small class="text-secondary">
+            {% if cnt > 0 %}
+              {{ cnt }} مراجعة معتمدة
+            {% else %}
+              لا توجد مراجعات
+            {% endif %}
+          </small>
+        {% endwith %}
+      </div>
+    </div>
+  {% empty %}
+    <div class="alert alert-info text-center">
+      لا توجد منتجات متاحة حالياً.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

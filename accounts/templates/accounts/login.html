@@ -1,16 +1,111 @@
-{% extends 'base.html' %}
-{% block title %}تسجيل دخول{% endblock %}
-{% block content %}
-<div class="max-w-md mx-auto bg-white p-8 rounded shadow">
-  <h2 class="text-2xl font-bold mb-4 text-center">تسجيل دخول</h2>
-  <form method="post" class="space-y-4">
-    {% csrf_token %}
-    <label>اسم المستخدم</label>
-    <input type="text" name="username" class="w-full px-4 py-2 border rounded" required>
-    <label>كلمة المرور</label>
-    <input type="password" name="password" class="w-full px-4 py-2 border rounded" required>
-    <button type="submit" class="w-full bg-green-600 text-white py-2 rounded">دخول</button>
-  </form>
-  <p class="mt-4 text-center">إنشاء حساب؟ <a href="{% url 'accounts:signup' %}" class="text-blue-600">سجل هنا</a></p>
-</div>
-{% endblock %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>تسجيل دخول</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      height:100%;
+      font-family:'Almarai',sans-serif;
+      background: linear-gradient(90deg, #ff758c 0%, #ff7eb3 100%);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .form-card {
+      background: rgba(255,255,255,0.95);
+      padding: 2rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      width:320px;
+      text-align: center;
+    }
+    .form-card h2 {
+      margin-bottom: 1.5rem;
+      color: #333;
+      font-size: 1.5rem;
+    }
+    .form-card label {
+      display: block;
+      margin-top: 1rem;
+      color: #555;
+      font-size: .9rem;
+      text-align: left;
+    }
+    .form-card input {
+      width: 100%;
+      padding: .6rem;
+      margin-top: .3rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: .95rem;
+    }
+    .form-card button {
+      margin-top: 1.8rem;
+      width: 100%;
+      padding: .75rem;
+      background: #e65f7a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .form-card button:hover {
+      background: #c14d67;
+    }
+    .nav-links {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: .9rem;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      margin-left: 1rem;
+      transition: opacity .2s;
+    }
+    .nav-links a:hover {
+      opacity: .7;
+    }
+    .errorlist {
+      color: #dc3545;
+      list-style: none;
+      padding: 0;
+      margin: .5rem 0 0;
+      text-align: left;
+    }
+    .errorlist li {
+      font-size: .85rem;
+      margin-bottom: .25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-card">
+    <h2>تسجيل الدخول</h2>
+    {% if error %}
+      <div class="errorlist" style="text-align:center; margin-bottom:1rem;">
+        <li>{{ error }}</li>
+      </div>
+    {% endif %}
+    <form method="post" action="{% url 'accounts:login' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      
+      <label for="{{ form.username.id_for_label }}">اسم المستخدم</label>
+      {{ form.username }}
+      {{ form.username.errors }}
+      
+      <label for="{{ form.password.id_for_label }}">كلمة المرور</label>
+      {{ form.password }}
+      {{ form.password.errors }}
+      
+      <button type="submit">دخول</button>
+    </form>
+  </div>
+</body>
+</html>

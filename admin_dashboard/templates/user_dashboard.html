@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}الصفحة الرئيسية{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto bg-white p-6 rounded-md shadow-md">
+
+  <h1 class="text-3xl font-bold mb-6 text-gray-800">مرحبًا، {{ user.username }}</h1>
+
+  <div class="border-b mb-6">
+    <nav class="-mb-px flex space-x-8">
+      <button data-tab="products" class="tab-btn">المنتجات</button>
+      <button data-tab="myreviews" class="tab-btn">مراجعاتي</button>
+      <button data-tab="profile" class="tab-btn">ملفّي</button>
+    </nav>
+  </div>
+
+  <div id="tab-content">
+    <div data-content="products" class="tab-pane">
+      <h2 class="text-2xl font-semibold mb-4">تصفح المنتجات</h2>
+      <!-- استخدم رابط حقيقي إذا عرّفت URL باسم product_list -->
+      <a href="#" class="btn-primary">اذهب إلى قائمة المنتجات</a>
+    </div>
+
+    <div data-content="myreviews" class="tab-pane hidden">
+      <h2 class="text-2xl font-semibold mb-4">مراجعاتي</h2>
+      <a href="#" class="btn-secondary">عرض مراجعاتي</a>
+    </div>
+
+    <div data-content="profile" class="tab-pane hidden">
+      <h2 class="text-2xl font-semibold mb-4">ملفّي الشخصي</h2>
+      <a href="#" class="btn-tertiary">تحرير الملف الشخصي</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      let tab=btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('border-blue-400','text-blue-600'));
+      btn.classList.add('border-blue-400','text-blue-600');
+      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('hidden',p.dataset.content!==tab));
+    });
+  });
+  document.querySelector('.tab-btn').click();
+</script>
+
+<style>
+  .tab-btn {padding:.5rem 1rem;border-bottom:2px solid transparent;cursor:pointer;}
+  .btn-primary{background:#2563eb;color:white;padding:.5rem 1rem;border-radius:.375rem;}
+  .btn-secondary{background:#16a34a;color:white;padding:.5rem 1rem;border-radius:.375rem;}
+  .btn-tertiary{background:#9333ea;color:white;padding:.5rem 1rem;border-radius:.375rem;}
+</style>
+{% endblock %}

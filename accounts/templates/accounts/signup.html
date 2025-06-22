@@ -1,16 +1,122 @@
-{% extends 'admin_dashboard/base.html' %}
-{% block title %}إنشاء حساب{% endblock %}
-{% block content %}
-<div class="max-w-md mx-auto bg-white p-8 rounded shadow">
-  <h2 class="text-2xl font-bold mb-4 text-center">إنشاء حساب</h2>
-  <form method="post" class="space-y-4">
-    {% csrf_token %}
-    {{ form.username.label_tag }}{{ form.username }}
-    {{ form.email.label_tag }}   {{ form.email }}
-    {{ form.password1.label_tag }}{{ form.password1 }}
-    {{ form.password2.label_tag }}{{ form.password2 }}
-    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">تسجيل</button>
-  </form>
-  <p class="mt-4 text-center">لديك حساب؟ <a href="{% url 'accounts:login' %}" class="text-blue-600">دخول</a></p>
-</div>
-{% endblock %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>إنشاء حساب جديد</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      height:100%;
+      font-family:'Almarai',sans-serif;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .form-card {
+      background: rgba(255,255,255,0.95);
+      padding: 2rem 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      width:320px;
+      text-align: center;
+    }
+    .form-card h2 {
+      margin-bottom: 1.5rem;
+      color: #333;
+      font-size: 1.5rem;
+    }
+    .form-card label {
+      display: block;
+      margin-top: 1rem;
+      color: #555;
+      font-size: .9rem;
+      text-align: left;
+    }
+    .form-card input {
+      width: 100%;
+      padding: .6rem;
+      margin-top: .3rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: .95rem;
+    }
+    .form-card button {
+      margin-top: 1.8rem;
+      width: 100%;
+      padding: .75rem;
+      background: #5a67d8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .form-card button:hover {
+      background: #4c51bf;
+    }
+    .nav-links {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: .9rem;
+    }
+    .nav-links a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      margin-left: 1rem;
+      transition: opacity .2s;
+    }
+    .nav-links a:hover {
+      opacity: .7;
+    }
+    .errorlist {
+      color: #dc3545;
+      list-style: none;
+      padding: 0;
+      margin: .5rem 0 0;
+      text-align: left;
+    }
+    .errorlist li {
+      font-size: .85rem;
+      margin-bottom: .25rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="nav-links">
+    <a href="{% url 'admin_dashboard:home' %}">الرئيسية</a>
+    <a href="{% url 'accounts:login' %}">دخول</a>
+  </div>
+
+  <div class="form-card">
+    <h2>إنشاء حساب جديد</h2>
+    <form method="post">
+      {% csrf_token %}
+
+      {{ form.non_field_errors }}
+
+      <label for="{{ form.username.id_for_label }}">اسم المستخدم</label>
+      {{ form.username }}
+      {{ form.username.errors }}
+
+      <label for="{{ form.email.id_for_label }}">البريد الإلكتروني</label>
+      {{ form.email }}
+      {{ form.email.errors }}
+
+      <label for="{{ form.password1.id_for_label }}">كلمة المرور</label>
+      {{ form.password1 }}
+      {{ form.password1.errors }}
+
+      <label for="{{ form.password2.id_for_label }}">تأكيد كلمة المرور</label>
+      {{ form.password2 }}
+      {{ form.password2.errors }}
+
+      <button type="submit">تسجيل</button>
+    </form>
+  </div>
+
+</body>
+</html>

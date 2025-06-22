@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}تأكيد حذف المنتج{% endblock %}
+
+{% block extra_css %}
+<style>
+  .confirm-card {
+    background: #fff;
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    direction: rtl;
+    text-align: right;
+    font-family: 'Cairo', sans-serif;
+  }
+  .confirm-card h2 {
+    margin-bottom: 1rem;
+    font-size: 1.6rem;
+    color: #c82333;
+  }
+  .confirm-card p {
+    margin-bottom: 2rem;
+    color: #555;
+    line-height: 1.5;
+  }
+  .confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .confirm-actions button,
+  .confirm-actions a {
+    padding: .75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+    color: #fff;
+  }
+  .confirm-actions button {
+    background: #dc3545;
+  }
+  .confirm-actions button:hover {
+    background: #bd2130;
+    transform: translateY(-1px);
+  }
+  .confirm-actions a {
+    background: #6c757d;
+    display: inline-block;
+  }
+  .confirm-actions a:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="confirm-card">
+  <h2>تأكيد حذف المنتج</h2>
+  <p>هل أنت متأكد من حذف المنتج <strong>"{{ object.name }}"</strong> نهائيًا؟</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="confirm-actions">
+      <button type="submit">نعم، احذف</button>
+      <a href="{% url 'admin_dashboard:product_list' %}">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

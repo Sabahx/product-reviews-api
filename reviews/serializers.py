@@ -1,10 +1,7 @@
 # your_app/serializers.py
 from rest_framework import serializers
-<<<<<<< HEAD
 from .models import Product, Review, Notification
-=======
 from .models import Product, Review
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -13,11 +10,6 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
@@ -40,11 +32,6 @@ class RegisterSerializer(ModelSerializer):
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
     
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class ReviewCommentSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
@@ -59,10 +46,6 @@ class ReviewCommentSerializer(serializers.ModelSerializer):
         # The review and user are set in the view
         return ReviewComment.objects.create(**validated_data)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class ReviewVoteSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
@@ -83,11 +66,8 @@ class ReviewVoteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # The review and user are set in the view
         return ReviewVote.objects.create(**validated_data)
-<<<<<<< HEAD
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Notification
         fields = ['id', 'review', 'message', 'is_read', 'created_at']
-=======
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50

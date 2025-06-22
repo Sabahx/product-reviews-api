@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}لوحة تحكّم المشرف{% endblock %}</title>
+
+  <!-- استيراد خط Cairo -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== إعدادات عامة ===== */
+    * { box-sizing: border-box; margin:0; padding:0; }
+    html, body {
+      height: 100%;
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+    }
+
+    /* ===== شريط التنقل ===== */
+    .navbar {
+      background: rgba(255,255,255,0.95);
+      padding: .75rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .navbar .brand {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #333;
+      text-decoration: none;
+    }
+    .navbar .nav-links a {
+      margin-left: 1rem;
+      text-decoration: none;
+      color: #555;
+      font-weight: 500;
+      transition: color .2s;
+    }
+    .navbar .nav-links a:hover {
+      color: #222;
+    }
+
+    /* ===== الحاوية الرئيسية ===== */
+    .main-container {
+      max-width: 960px;
+      margin: 2.5rem auto;
+      padding: 0 1rem;
+    }
+  </style>
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="{% url 'admin_dashboard:home' %}" class="brand">لوحة المشرف</a>
+    <div class="nav-links">
+      <a href="{% url 'admin_dashboard:product_list' %}">المنتجات</a>
+      <a href="{% url 'admin_dashboard:pending_reviews' %}">مراجعات</a>
+      <a href="{% url 'accounts:logout' %}">خروج</a>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    {% block content %}{% endblock %}
+  </div>
+    {# نهاية main-container #}
+
+    {# بلوك لجافاسكربت الخاص بالصفحات #}
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

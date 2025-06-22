@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}المراجعات بانتظار الموافقة{% endblock %}
+{% block content %}
+  <h1>المراجعات بانتظار الموافقة</h1>
+  <ul>
+    {% for r in reviews %}
+      <li class="card mb-2">
+        <strong>{{ r.product.name }}:</strong> {{ r.user.username }} — {{ r.rating }}⭐<br>
+        {{ r.review_text|truncatechars:100 }}
+        <div class="mt-2">
+          <a href="{% url 'admin_dashboard:approve_review' r.id %}" class="btn">موافقة</a>
+          <a href="{% url 'admin_dashboard:delete_review' r.id %}" class="btn btn-danger">حذف</a>
+        </div>
+      </li>
+    {% empty %}
+      <p>لا توجد مراجعات بانتظار الموافقة.</p>
+    {% endfor %}
+  </ul>
+{% endblock %}

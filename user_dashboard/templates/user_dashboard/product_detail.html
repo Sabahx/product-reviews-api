@@ -1,0 +1,24 @@
+{% extends 'user_dashboard/base.html' %}
+{% block title %}تفاصيل {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2>{{ product.name }}</h2>
+  <p>{{ product.description }}</p>
+  <p>السعر: {{ product.price|floatformat:2 }} USD</p>
+  <hr>
+  <h4>أضف مراجعتك</h4>
+  <form method="post" action="{% url 'user_dashboard:add_review' product.pk %}">
+    {% csrf_token %}
+    {{ form.rating }} {{ form.review_text }}
+    <button class="btn btn-primary">أرسل</button>
+  </form>
+  <hr>
+  <h4>مراجعات المستخدمين</h4>
+  {% for r in approved_reviews %}
+    <p><strong>{{ r.user.username }}</strong>: {{ r.review_text }}</p>
+  {% empty %}
+    <p>لا توجد مراجعات حتى الآن.</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{# user_dashboard/templates/user_dashboard/_product_list.html #}
+<div class="d-flex flex-column gap-4">
+  {% for p in products %}
+  <div class="card border rounded shadow-sm">
+    <div class="card-body">
+      <h5 class="card-title">{{ p.name }}</h5>
+      <p class="card-text text-muted mb-2">{{ p.description|truncatechars:100 }}</p>
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="badge bg-success">
+          السعر: {{ p.price|floatformat:2 }} USD
+        </span>
+        <a href="{% url 'user_dashboard:product_detail' p.pk %}"
+           class="btn btn-outline-primary btn-sm">
+          عرض التفاصيل
+        </a>
+      </div>
+    </div>
+    <div class="card-footer bg-white border-0">
+      {% with p.approved_reviews|length as cnt %}
+        <small class="text-secondary">
+          {% if cnt %}{{ cnt }} مراجعة معتمدة{% else %}لا توجد مراجعات{% endif %}
+        </small>
+      {% endwith %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="alert alert-info text-center">لا توجد منتجات حالياً.</div>
+  {% endfor %}
+</div>

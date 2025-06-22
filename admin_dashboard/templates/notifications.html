@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}التنبيهات{% endblock %}
+{% block content %}
+  <h1>التنبيهات</h1>
+  <ul>
+    {% for n in notifications %}
+      <li class="card mb-2 {% if not n.is_read %} border-left:4px solid #dc3545;{% endif %}">
+        {{ n.message }} 
+        <small class="text-muted">{{ n.created_at|date:"Y-m-d H:i" }}</small>
+        {% if not n.is_read %}
+          <a href="{% url 'admin_dashboard:mark_notification_read' n.id %}">وضع كمقروءة</a>
+        {% endif %}
+      </li>
+    {% empty %}
+      <p>لا توجد تنبيهات.</p>
+    {% endfor %}
+  </ul>
+{% endblock %}

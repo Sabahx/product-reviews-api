@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}كلّ المراجعات{% endblock %}
+{% block content %}
+  <h1>كلّ المراجعات</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>المنتج</th>
+        <th>المستخدم</th>
+        <th>التقييم</th>
+        <th>نصّ المراجعة</th>
+        <th>الحالة</th>
+        <th>تاريخ الإنشاء</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reviews %}
+        <tr>
+          <td>{{ r.product.name }}</td>
+          <td>{{ r.user.username }}</td>
+          <td>{{ r.rating }}⭐</td>
+          <td>{{ r.review_text|truncatechars:50 }}</td>
+          <td>{{ r.visible|yesno:"معتمدة,انتظار" }}</td>
+          <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

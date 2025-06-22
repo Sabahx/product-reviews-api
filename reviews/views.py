@@ -16,32 +16,25 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from .models import Product
 from .serializers import ProductSerializer
 
-<<<<<<< HEAD
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-=======
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
-
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
 
-<<<<<<< HEAD
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = {
         'rating': ['exact', 'gte', 'lte'],         
         'created_at': ['date__gte', 'date__lte'],  
         'product__id': ['exact'],                  
-        'is_approved': ['exact'],                  
+        'visible':       ['exact'],    # ← هنا يجب استخدام الحقل الصحيح
+                
     }
     search_fields = ['text', 'user__username']      
     ordering_fields = ['created_at', 'rating'] 
     
-=======
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
@@ -50,14 +43,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
         review = self.get_object()
         review.visible = True
         review.save()
-<<<<<<< HEAD
         Notification.objects.create(
            user    = review.user,
            review  = review,
            message = f"تمت الموافقة على مراجعتك للمنتج «{review.product.name}»"
        )
-=======
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
         return Response({'status': 'Review Approved'})
     
     @action(detail=True, methods=['get', 'post'])
@@ -96,19 +86,10 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer = ReviewVoteSerializer(vote)
         return Response(serializer.data)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -141,7 +122,6 @@ class ReviewVoteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-<<<<<<< HEAD
 
 from .models import Notification
 from .serializers import NotificationSerializer
@@ -161,5 +141,3 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notification.is_read = True
         notification.save()
         return Response({'status': 'marked as read'})
-=======
->>>>>>> 0d4e224f4b88d804c64f252921113f09f81b3a50
