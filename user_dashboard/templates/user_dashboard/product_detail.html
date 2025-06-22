@@ -1,5 +1,70 @@
 {% extends 'user_dashboard/base.html' %}
 {% block title %}تفاصيل {{ product.name }}{% endblock %}
+<style>
+.content-wrapper {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  max-width: 700px; /* عرض البطاقة */
+  margin: 2rem auto; /* توسيط في الصفحة */
+}
+
+h2 {
+  color: #764ba2;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+p {
+  font-size: 1rem;
+  color: #333;
+}
+
+.badge {
+  font-size: 0.9rem;
+  padding: 0.4em 0.6em;
+}
+
+form {
+  margin-top: 1rem;
+}
+
+form textarea,
+form select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  margin-bottom: 0.5rem;
+}
+
+form button {
+  background: #667eea;
+  border: none;
+  padding: 0.5rem 1rem;
+  color: #fff;
+  border-radius: 6px;
+}
+
+form button:hover {
+  background: #764ba2;
+}
+
+hr {
+  margin: 1.5rem 0;
+  border-top: 1px solid #ddd;
+}
+
+.review {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.review strong {
+  color: #764ba2;
+}
+</style>
 
 {% block content %}
 <div class="container py-4">

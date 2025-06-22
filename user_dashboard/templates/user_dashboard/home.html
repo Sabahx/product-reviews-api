@@ -2,47 +2,37 @@
 {% block title %}الرئيسية - متجر المنتجات{% endblock %}
 
 {% block content %}
-<h1 class="mb-4 text-center">جميع المنتجات</h1>
+  <h1 class="text-center mb-4">جميع المنتجات</h1>
 
-<div class="d-flex flex-column gap-4">
-  {% for p in products %}
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <!-- اسم المنتج -->
-        <h5 class="card-title">{{ p.name }}</h5>
-        <!-- وصف مختصر -->
-        <p class="card-text text-muted">
-          {{ p.description|truncatechars:150 }}
-        </p>
-        <!-- السعر -->
-        <p>
-          <span class="badge bg-success">
-            السعر: {{ p.price|floatformat:2 }} USD
-          </span>
-        </p>
-        <!-- زر التفاصيل -->
-        <a href="{% url 'user_dashboard:product_detail' p.pk %}"
-           class="btn btn-outline-primary btn-sm">
-          عرض التفاصيل
-        </a>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for p in products %}
+      <div class="col">
+        <div class="card bg-white shadow-sm rounded-3 h-100">
+          <div class="card-body">
+            <h5 class="card-title text-primary">{{ p.name }}</h5>
+            <p class="card-text text-muted">{{ p.description|truncatechars:120 }}</p>
+            <p class="mb-2">
+              <span class="badge bg-success">السعر: {{ p.price|floatformat:2 }} USD</span>
+            </p>
+            <a href="{% url 'user_dashboard:product_detail' p.pk %}" class="btn btn-outline-primary btn-sm">
+              عرض التفاصيل
+            </a>
+          </div>
+          <div class="card-footer bg-light border-0">
+            {% with p.approved_reviews|length as cnt %}
+              <small class="text-secondary">
+                {% if cnt %}
+                  {{ cnt }} مراجعة معتمدة
+                {% else %}
+                  لا توجد مراجعات
+                {% endif %}
+              </small>
+            {% endwith %}
+          </div>
+        </div>
       </div>
-      <div class="card-footer bg-white border-top">
-        <!-- عدد المراجعات المعتمدة -->
-        {% with p.approved_reviews|length as cnt %}
-          <small class="text-secondary">
-            {% if cnt > 0 %}
-              {{ cnt }} مراجعة معتمدة
-            {% else %}
-              لا توجد مراجعات
-            {% endif %}
-          </small>
-        {% endwith %}
-      </div>
-    </div>
-  {% empty %}
-    <div class="alert alert-info text-center">
-      لا توجد منتجات متاحة حالياً.
-    </div>
-  {% endfor %}
-</div>
+    {% empty %}
+      <div class="alert alert-info text-center w-100">لا توجد منتجات حالياً.</div>
+    {% endfor %}
+  </div>
 {% endblock %}

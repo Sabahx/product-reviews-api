@@ -55,15 +55,28 @@ def home(request):
     return render(request, 'user_dashboard/home.html', {
         'products': products
     })
-                  
 @login_required
 def product_detail(request, pk):
     product = get_object_or_404(Product, pk=pk)
-    # جلب المراجعات المعتمدة:
-    approved = product.reviews.filter(visible=True)
+    # مراجعات المنتج المعتمدة
+    approved_reviews = product.reviews.filter(visible=True).select_related('user')
+    # نموذج لإضافة مراجعة جديدة
     form = ReviewForm()
     return render(request, 'user_dashboard/product_detail.html', {
         'product': product,
-        'approved_reviews': approved,
+        'approved_reviews': approved_reviews,
         'form': form,
     })
+    
+@login_required
+def add_review(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    if request.method == 'POST':
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            rev = form.save(commit=False)
+            rev.product = product
+            rev.user    = request.user
+            rev.visible = False
+            rev.save()
+    return redirect('user_dashboard:home')
