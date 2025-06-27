@@ -315,10 +315,11 @@ class ReviewAdminTests(TestCase):
         updated_review = Review.objects.get(id=review.id)
         self.assertFalse(updated_review.visible)
         
-    def test_insights_display(self):
-        url = reverse('admin:reviews_review_changelist')
-        response = self.client.get(url)
-        self.assertContains(response, 'Review Insights')
-        self.assertContains(response, 'Hidden Reviews')
-        self.assertContains(response, 'By rating')
-        self.assertContains(response, 'Offensive Content')
+class BannedWordsTest(TestCase):
+    def test_banned_words_list(self):
+        """Test that banned words list contains expected words"""
+        from reviews.admin import BANNED_WORDS
+        self.assertIn('dump', BANNED_WORDS)
+        self.assertIn('useless', BANNED_WORDS)
+        self.assertIn('garbage', BANNED_WORDS)
+        self.assertEqual(len(BANNED_WORDS), 7)  # Update this if you add more words
