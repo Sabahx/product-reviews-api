@@ -168,3 +168,85 @@ class ReviewAnalyticsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['text'], "Excellent")
+#########           ⬇⬇⬇⬇⬇⬇⬇⬇(mjd)⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇
+from django.test import TestCase
+from rest_framework.test import APIClient
+from django.contrib.auth.models import User
+from reviews.models import Product, Review, ReviewInteraction
+from rest_framework import status
+
+class ReviewInteractionTestCase(TestCase):
+    def setUp(self):
+    # 1. إنشاء مستخدمين
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        self.user3 = User.objects.create_user(username='user3', password='pass123')
+
+        # 2. إنشاء منتج ومراجعتين
+        self.product = Product.objects.create(name='Laptop', description='Good', price=5000)
+        self.review1 = Review.objects.create(product=self.product, user=self.user1, rating=5, review_text='ممتاز', visible=True)
+        self.review2 = Review.objects.create(product=self.product, user=self.user2, rating=2, review_text='سيء', visible=True)
+
+        # 3. إنشاء APIClient بعد إنشاء المستخدمين
+        self.client = APIClient()
+
+        # 4. تسجيل دخول user3 عبر JWT
+        response = self.client.post('/api/token/', {'username': 'user3', 'password': 'pass123'})
+        self.token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + self.token)
+        print("TOKEN:", self.token)
+
+    # 1. اختبار تقييم المراجعة بأنها مفيدة أو غير مفيدة:
+
+    def test_user_can_mark_review_as_helpful(self):
+        response = self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': True})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(ReviewInteraction.objects.filter(review=self.review1, user=self.user3, helpful=True).exists())
+
+    def test_user_can_mark_review_as_not_helpful(self):
+        response = self.client.post(f'/api/reviews/{self.review2.id}/interact/', {'helpful': False})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(ReviewInteraction.objects.filter(review=self.review2, user=self.user3, helpful=False).exists())
+
+    # 2. اختبار منع التفاعل المكرر (نفس المستخدم يقيّم المراجعة مرتين):
+
+"""    def test_user_can_update_review_interaction(self):
+        self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': True})
+        self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': False})
+        ReviewInteraction.objects.create(review=self.review1, user=self.user3, helpful=True)
+        interaction = ReviewInteraction.objects.get(review=self.review1, user=self.user3)
+        self.assertFalse(interaction.helpful)  # تم التحديث وليس الإنشاء من جديد"""
+def test_user_can_update_review_interaction(self):
+    self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': True})
+    self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': False})
+    interaction = ReviewInteraction.objects.get(review=self.review1, user=self.user3)
+    self.assertFalse(interaction.helpful)  # تم التحديث وليس الإنشاء من جديد"""
+
+
+    # 3. اختبار عدد الإعجابات وعدم الإعجاب يظهر في Serializer:
+
+    def test_likes_dislikes_counts(self):
+        ReviewInteraction.objects.create(review=self.review1, user=self.user3, helpful=True)
+        ReviewInteraction.objects.create(review=self.review1, user=self.user2, helpful=True)
+        ReviewInteraction.objects.create(review=self.review1, user=self.user1, helpful=False)
+
+        response = self.client.get(f'/api/reviews/{self.review1.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['likes'], 2)
+        self.assertEqual(response.data['dislikes'], 1)
+
+    #4. اختبار أفضل مراجعة (Top Review):
+
+    def test_top_review_endpoint(self):
+        # review1: 2 likes
+        ReviewInteraction.objects.create(review=self.review1, user=self.user2, helpful=True)
+        ReviewInteraction.objects.create(review=self.review1, user=self.user3, helpful=True)
+
+        # review2: 1 like
+        ReviewInteraction.objects.create(review=self.review2, user=self.user1, helpful=True)
+
+        response = self.client.get('/api/reviews/top-review/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.review1.id)
+        self.assertEqual(response.data['likes'], 2)
+####################################⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆

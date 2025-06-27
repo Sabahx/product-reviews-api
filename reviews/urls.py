@@ -10,13 +10,15 @@ router.register(r'review-comments', ReviewCommentViewSet, basename='review-comme
 router.register(r'review-votes', ReviewVoteViewSet, basename='review-vote') 
 
 urlpatterns = [
+    path('api/', include(router.urls)),
     path('register/', RegisterView.as_view(), name='register'),
     path('', include(router.urls)),
     path('products/<int:pk>/analytics/', ProductAnalyticsView.as_view(), name='product-analytics'),
     path('analytics/top-reviewers/', TopReviewersView.as_view(), name='top-reviewers'),
     path('analytics/top-products/', TopRatedProductsView.as_view(), name='top-rated-products'),
     path('analytics/search-reviews/', KeywordSearchReviewsView.as_view(), name='search-reviews'),
-    path('reviews/<int:pk>/approve_review/', ReviewApproveView.as_view(), name='approve-review')
+    path('reviews/<int:pk>/approve_review/', ReviewApproveView.as_view(), name='approve-review') ,
+
 
 ]
 

@@ -3,7 +3,7 @@ from .serializers import RegisterSerializer, ReviewCommentSerializer, ReviewVote
 from rest_framework import viewsets, permissions, status ,generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
 from .models import Review, ReviewComment, ReviewVote ,Product
 from .serializers import ReviewSerializer 
@@ -13,11 +13,9 @@ from django.utils import timezone
 from django.db.models import Subquery, OuterRef ,Avg ,Count , Q
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
-from .models import Product
+from .models import Product ,ReviewInteraction
 from .serializers import ProductSerializer
-
-
-
+from django.db import models
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -29,6 +27,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def get_queryset(self):
+        
         if self.action in ['update', 'partial_update', 'destroy', 'retrieve']:
            return Review.objects.all()  # ← هذا السطر هو المحتوى المتوقع داخل if
     
@@ -40,8 +39,37 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if rating:
             queryset = queryset.filter(rating=rating)
         return queryset
+        
+    ##mjd⬇
+    @action(detail=True, methods=['post'],permission_classes=[IsAuthenticated])
+    def interact(self, request, pk=None):
+        """المستخدم يقيّم المراجعة بأنها مفيدة أو غير مفيدة"""
+        review = self.get_object()
+        helpful = request.data.get('helpful')
 
+        if helpful is None:
+            return Response({"error": "يجب إرسال قيمة الحقل 'helpful'"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # تقييد كل مستخدم بتفاعل واحد لكل مراجعة
+        interaction, created = ReviewInteraction.objects.update_or_create(
+            review=review,
+            user=request.user,
+            defaults={'helpful': helpful}
+        )
+        return Response({"message": "تم حفظ التفاعل"}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='top-review')
+    def top_review(self, request):
+        """عرض المراجعة التي حصلت على أكبر عدد من الإعجابات"""
+        
+        top = Review.objects.annotate(
+            likes=Count('interactions', filter=models.Q(interactions__helpful=True))
+        ).order_by('-likes').first()
+
+        if top:
+            return Response(self.get_serializer(top).data)
+        return Response({"message": "لا توجد مراجعات بعد"}, status=status.HTTP_404_NOT_FOUND)
+##⬆
 
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
@@ -203,7 +231,23 @@ class TopRatedProductsView(APIView):
         return Response(result)
 
 #يرجع مراجعات تحتوي كلمات أو جمل معيّنة (مثل "سيء", "ممتاز", "سعر").
+#mjd⬇
+"""# عرض أعلى مراجعة تفاعلاً (Top Review)
+class TopReviewView(APIView):
+    permission_classes = [permissions.AllowAny]
 
+    def get(self, request, product_id):
+        top_review = (
+            Review.objects.filter(product_id=product_id, visible=True)
+            .annotate(likes=Count('interactions', filter=Q(interactions__helpful=True)))
+            .order_by('-likes', '-created_at')  # الأفضلية للأكثر إعجابًا ثم الأحدث
+            .first()
+        )
+        if top_review:
+            return Response(ReviewSerializer(top_review, context={'request': request}).data)
+        else:
+            return Response({'detail': 'لا توجد مراجعات متاحة'}, status=404)
+"""
 class KeywordSearchReviewsView(APIView):
     permission_classes = [AllowAny]
 
