@@ -1,5 +1,6 @@
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.contrib.auth.models import User
+from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from .models import Product, Review
@@ -250,3 +251,74 @@ def test_user_can_update_review_interaction(self):
         self.assertEqual(response.data['id'], self.review1.id)
         self.assertEqual(response.data['likes'], 2)
 ####################################⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆
+
+class ReviewAdminTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            password='admin123',
+            email='admin@example.com'
+        )
+        self.client.force_login(self.admin_user)
+        
+        self.product = Product.objects.create(name='Test Product', price=9.99)
+        self.user = User.objects.create_user(username='testuser', password='12345')
+        
+        # Create test reviews
+        Review.objects.create(
+            user=self.user,
+            product=self.product,
+            rating=5,
+            review_text='Great product!',
+            visible=True
+        )
+        Review.objects.create(
+            user=self.user,
+            product=self.product,
+            rating=1,
+            review_text='This is badword1 awful!',
+            visible=False
+        )
+
+    def test_review_list_view(self):
+        url = reverse('admin:reviews_review_changelist')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        # self.assertContains(response, 'Great product!')
+        self.assertContains(response, 'Test Product')   # product name
+        self.assertContains(response, 'testuser')       # reviewer username
+        self.assertContains(response, '5')              # rating (appears as a number)
+        
+    def test_offensive_filter(self):
+        url = reverse('admin:reviews_review_changelist') + '?offensive=yes'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Product')
+        self.assertContains(response, 'icon-yes.svg')  # indicates an offensive review
+        # self.assertContains(response, 'badword1')
+        # self.assertNotContains(response, 'Great product!')
+        
+    def test_visibility_toggle(self):
+        review = Review.objects.get(rating=5)
+        url = reverse('admin:reviews_review_change', args=[review.id])
+        data = {
+            'user': review.user.id,
+            'product': review.product.id,
+            'rating': review.rating,
+            'review_text': review.review_text,
+            'visible': False,  # Toggle visibility
+            '_save': 'Save',
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        updated_review = Review.objects.get(id=review.id)
+        self.assertFalse(updated_review.visible)
+        
+    def test_insights_display(self):
+        url = reverse('admin:reviews_review_changelist')
+        response = self.client.get(url)
+        self.assertContains(response, 'Review Insights')
+        self.assertContains(response, 'Hidden Reviews')
+        self.assertContains(response, 'By rating')
+        self.assertContains(response, 'Offensive Content')

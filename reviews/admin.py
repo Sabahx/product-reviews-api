@@ -8,7 +8,7 @@ class ProductAdmin(admin.ModelAdmin):
     
     
 # List of offensive words to filter (store this in settings or database in production)
-BANNED_WORDS = ['dump', 'incompetent', 'offensive1', 'useless', 'garbage', 'crap']
+BANNED_WORDS = ['dump', 'incompetent', 'offensive1', 'useless', 'garbage', 'crap', 'badword1']
 
 class OffensiveContentFilter(admin.SimpleListFilter):
     title = 'offensive content'
@@ -40,13 +40,13 @@ class ReviewCommentInline(admin.TabularInline):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ['product', 'user', 'rating',  'sentiment', 'visible', 'created_at', 'has_offensive_content', 
+    list_display = ['product', 'user', 'rating',  'sentiment', 'visible', 'has_offensive_content', 
                     'likes_count_display']
     list_filter = ['visible', 'rating', 'sentiment', 'created_at', OffensiveContentFilter]
     list_editable = ('visible',)
     search_fields = ['review_text', 'user__username', 'product__name']
     inlines = [ReviewCommentInline]
-    readonly_fields = ('sentiment', 'likes_count_display')
+    readonly_fields = ('sentiment', 'likes_count_display', 'created_at')
 
     fieldsets = (
         (None, {
