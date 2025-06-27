@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Product, Review 
+from .models import Product, Review
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ['name', 'price', 'created_at']
