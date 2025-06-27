@@ -51,6 +51,7 @@ class ReviewComment(models.Model):
     
     def __str__(self):
         return f"Comment by {self.user.username} on {self.review}"
+
 class ReviewVote(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='votes')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
