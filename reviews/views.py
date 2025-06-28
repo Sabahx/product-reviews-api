@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
-from .models import Review, ReviewComment, ReviewVote ,Product
+from .models import Review, ReviewComment, ReviewVote ,Product,Notification
 from .serializers import ReviewSerializer 
 from .permissions import IsOwnerOrReadOnly
 from datetime import timedelta
@@ -286,3 +286,16 @@ class ReviewApproveView(APIView):
         review.visible = request.data.get("visible", True)
         review.save()
         return Response({"detail": "Review approved"}, status=200)
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.read = True
+        notification.save()
+        return Response({'status': 'marked as read'})
