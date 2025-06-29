@@ -1,6 +1,5 @@
-
 from rest_framework.routers import DefaultRouter
-from .views import KeywordSearchReviewsView, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView
+from .views import KeywordSearchReviewsView, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView
 from django.urls import path, include
 
 router = DefaultRouter()
@@ -18,7 +17,6 @@ urlpatterns = [
     path('analytics/top-products/', TopRatedProductsView.as_view(), name='top-rated-products'),
     path('analytics/search-reviews/', KeywordSearchReviewsView.as_view(), name='search-reviews'),
     path('reviews/<int:pk>/approve_review/', ReviewApproveView.as_view(), name='approve-review') ,
-
-
+    path('admin/banned-word-reviews/', BannedWordsReviewsView.as_view(), name='banned-word-reviews'),
 ]
 

@@ -2,9 +2,10 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from .models import Product, Review
+from .models import Product, Review, BannedWord
 from django.utils import timezone
 from datetime import timedelta
+import json
 
 
 class ReviewSystemTests(APITestCase):
@@ -168,7 +169,121 @@ class ReviewAnalyticsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['text'], "Excellent")
-#########           ⬇⬇⬇⬇⬇⬇⬇⬇(mjd)⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇⬇
+
+# Laith: Added test class for banned words functionality
+class BannedWordsTestCase(APITestCase):
+    def setUp(self):
+        # Create admin user
+        self.admin = User.objects.create_superuser(
+            username='admin',
+            email='admin@example.com',
+            password='adminpassword'
+        )
+        
+        # Create regular user
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='user@example.com',
+            password='userpassword'
+        )
+        
+        # Create product
+        self.product = Product.objects.create(
+            name='Test Product',
+            description='Test Description',
+            price=99.99
+        )
+        
+        # Create banned words
+        BannedWord.objects.create(word='inappropriate', severity=1)
+        BannedWord.objects.create(word='offensive', severity=2)
+        BannedWord.objects.create(word='vulgar', severity=3)
+        
+        # Create reviews with and without banned words
+        self.clean_review = Review.objects.create(
+            product=self.product,
+            user=self.user,
+            rating=4,
+            review_text='This is a good product',
+            visible=True
+        )
+        
+        self.banned_review_low = Review.objects.create(
+            product=self.product,
+            user=self.user,
+            rating=2,
+            review_text='This is an inappropriate product',
+            visible=True
+        )
+        
+        self.banned_review_high = Review.objects.create(
+            product=self.product,
+            user=self.user,
+            rating=1,
+            review_text='This product is vulgar and offensive',
+            visible=True
+        )
+        
+        # Get tokens
+        response = self.client.post('/api/token/', {
+            'username': 'admin',
+            'password': 'adminpassword'
+        })
+        self.admin_token = response.data['access']
+        
+        response = self.client.post('/api/token/', {
+            'username': 'testuser',
+            'password': 'userpassword'
+        })
+        self.user_token = response.data['access']
+    
+    def test_banned_words_detection(self):
+        """Test that banned words are properly detected in reviews"""
+        # Check that the banned words were properly detected during save
+        self.clean_review.refresh_from_db()
+        self.banned_review_low.refresh_from_db()
+        self.banned_review_high.refresh_from_db()
+        
+        self.assertFalse(self.clean_review.contains_banned_words)
+        self.assertIsNone(self.clean_review.banned_words_found)
+        
+        self.assertTrue(self.banned_review_low.contains_banned_words)
+        self.assertEqual(self.banned_review_low.banned_words_found, 'inappropriate')
+        
+        self.assertTrue(self.banned_review_high.contains_banned_words)
+        # The order might vary, so we check if both words are in the result
+        self.assertIn('vulgar', self.banned_review_high.banned_words_found)
+        self.assertIn('offensive', self.banned_review_high.banned_words_found)
+    
+    def test_banned_words_endpoint_admin_access(self):
+        """Test that only admins can access the banned words endpoint"""
+        # Admin should have access
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        response = self.client.get('/api/admin/banned-word-reviews/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)  # Should return both banned reviews
+        
+        # Regular user should not have access
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        response = self.client.get('/api/admin/banned-word-reviews/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+    
+    def test_banned_words_filtering_by_severity(self):
+        """Test filtering banned reviews by severity level"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        
+        # Filter by low severity (should return only the 'inappropriate' review)
+        response = self.client.get('/api/admin/banned-word-reviews/?severity=1')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['banned_words_found'], 'inappropriate')
+        
+        # Filter by high severity (should return only the review with 'vulgar')
+        response = self.client.get('/api/admin/banned-word-reviews/?severity=3')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertIn('vulgar', response.data[0]['banned_words_found'])
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 from django.contrib.auth.models import User
@@ -210,18 +325,11 @@ class ReviewInteractionTestCase(TestCase):
 
     # 2. اختبار منع التفاعل المكرر (نفس المستخدم يقيّم المراجعة مرتين):
 
-"""    def test_user_can_update_review_interaction(self):
+    def test_user_can_update_review_interaction(self):
         self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': True})
         self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': False})
-        ReviewInteraction.objects.create(review=self.review1, user=self.user3, helpful=True)
         interaction = ReviewInteraction.objects.get(review=self.review1, user=self.user3)
-        self.assertFalse(interaction.helpful)  # تم التحديث وليس الإنشاء من جديد"""
-def test_user_can_update_review_interaction(self):
-    self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': True})
-    self.client.post(f'/api/reviews/{self.review1.id}/interact/', {'helpful': False})
-    interaction = ReviewInteraction.objects.get(review=self.review1, user=self.user3)
-    self.assertFalse(interaction.helpful)  # تم التحديث وليس الإنشاء من جديد"""
-
+        self.assertFalse(interaction.helpful)  # تم التحديث وليس الإنشاء من جديد
 
     # 3. اختبار عدد الإعجابات وعدم الإعجاب يظهر في Serializer:
 

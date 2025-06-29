@@ -1,11 +1,11 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from .serializers import RegisterSerializer, ReviewCommentSerializer, ReviewVoteSerializer
 from rest_framework import viewsets, permissions, status ,generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
-from .models import Review, ReviewComment, ReviewVote ,Product
+from .models import Review, ReviewComment, ReviewVote ,Product, BannedWord
 from .serializers import ReviewSerializer 
 from .permissions import IsOwnerOrReadOnly
 from datetime import timedelta
@@ -20,7 +20,7 @@ from django.db import models
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
 
     def perform_create(self, serializer):
@@ -113,6 +113,40 @@ class ReviewViewSet(viewsets.ModelViewSet):
             vote.save()
         
         serializer = ReviewVoteSerializer(vote)
+        return Response(serializer.data)
+
+    # Laith: Added action to filter reviews with banned words (admin only)
+    @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
+    def with_banned_words(self, request):
+        """
+        Returns reviews containing banned words.
+        Can filter by severity level using the 'severity' query parameter.
+        """
+        severity = request.query_params.get('severity')
+        
+        reviews = self.get_queryset().filter(contains_banned_words=True)
+        
+        if severity:
+            try:
+                severity = int(severity)
+                # Get banned words with the specified severity
+                banned_words = BannedWord.objects.filter(severity=severity).values_list('word', flat=True)
+                
+                # Filter reviews containing these words
+                filtered_reviews = []
+                for review in reviews:
+                    if review.banned_words_found:
+                        found_words = review.banned_words_found.split(', ')
+                        for word in banned_words:
+                            if word in found_words:
+                                filtered_reviews.append(review)
+                                break
+                
+                reviews = Review.objects.filter(id__in=[r.id for r in filtered_reviews])
+            except ValueError:
+                return Response({"detail": "Invalid severity parameter"}, status=400)
+        
+        serializer = self.get_serializer(reviews, many=True)
         return Response(serializer.data)
 
 
@@ -286,3 +320,58 @@ class ReviewApproveView(APIView):
         review.visible = request.data.get("visible", True)
         review.save()
         return Response({"detail": "Review approved"}, status=200)
+
+# Laith: Added view for filtering reviews with banned words for admin use
+class BannedWordsReviewsView(APIView):
+    permission_classes = [IsAdminUser]
+    
+    def get(self, request):
+        """
+        Returns reviews that contain banned words.
+        Optional query parameters:
+        - severity: Filter by banned word severity (1, 2, or 3)
+        - days: Filter reviews from the last X days
+        """
+        days = request.query_params.get('days')
+        severity = request.query_params.get('severity')
+        
+        reviews = Review.objects.filter(contains_banned_words=True)
+        
+        if days:
+            try:
+                days = int(days)
+                start_date = timezone.now() - timedelta(days=days)
+                reviews = reviews.filter(created_at__gte=start_date)
+            except ValueError:
+                return Response({"detail": "Invalid days parameter"}, status=400)
+        
+        if severity:
+            try:
+                severity = int(severity)
+                # Get all banned words with the specified severity
+                banned_words = BannedWord.objects.filter(severity=severity).values_list('word', flat=True)
+                
+                # Filter reviews that contain any of these words
+                # This is a more complex query that checks each banned word
+                q_objects = Q()
+                for word in banned_words:
+                    q_objects |= Q(review_text__icontains=word)
+                
+                reviews = reviews.filter(q_objects)
+            except ValueError:
+                return Response({"detail": "Invalid severity parameter"}, status=400)
+        
+        result = []
+        for review in reviews:
+            result.append({
+                "id": review.id,
+                "product": review.product.name,
+                "user": review.user.username,
+                "rating": review.rating,
+                "review_text": review.review_text,
+                "banned_words_found": review.banned_words_found,
+                "created_at": review.created_at,
+                "visible": review.visible
+            })
+        
+        return Response(result)
