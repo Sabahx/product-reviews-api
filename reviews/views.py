@@ -152,6 +152,54 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 'suggested_action': 'التحقق من سجلات الخادم وإعادة المحاولة'
             }, status=500)
     
+    # Review disapproval by admin
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
+    def disapprove(self, request, pk=None):
+        try:
+            review = Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            return Response(status=404)
+        
+        try:    
+            review.visible = False
+            review.save()
+            
+            # Create notification for the reviewer if reason was provided
+            if request.disapproval_reason:
+                Notification.objects.create(
+                    user=review.user,
+                    message=f"تم رفض مراجعتك للمنتج {review.product.name}: {review.disapproval_reason}",
+                    read=False,
+                    created_at=timezone.now(),
+                    related_review=f"/products/{review.product.id}/reviews/{review.id}",
+                )
+            
+            # Prepare detailed response
+            serializer = ReviewSerializer(review)
+            response_data = {
+                'status': 'success',
+                'message': 'تم رفض المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product': ProductSerializer(review.product).data,
+                    'disapproval_time': timezone.now(),
+                }
+            }
+            
+            review.delete()
+            
+            return Response(response_data, status=200)
+        
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'فشل في رفض المراجعة',
+                'error': str(e),
+                'error_code': 'REVIEW_DISAPPROVAL_FAILED',
+                'suggested_action': 'التحقق من سجلات الخادم وإعادة المحاولة'
+            }, status=500)
+    
     # Commenting on reviews
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
