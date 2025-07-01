@@ -76,3 +76,17 @@ class ReviewInteraction(models.Model):
 
     class Meta:
         unique_together = ('review', 'user')
+class Notification(models.Model):
+    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
+    message = models.TextField()
+    read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    related_review = models.ForeignKey(
+        Review, 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        ordering = ['-created_at']
