@@ -16,6 +16,11 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from .models import Product ,ReviewInteraction
 from .serializers import ProductSerializer
 from django.db import models
+from django.http import HttpResponse
+import csv
+import openpyxl
+from io import BytesIO
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -139,6 +144,66 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticatedOrReadOnly()]
+    @action(detail=True, methods=['get'])
+    def export_reviews(self, request, pk=None):
+        product = self.get_object()
+        reviews = product.reviews.filter(approved=True)
+        
+        format = request.query_params.get('format', 'csv')
+        
+        if format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{product.name}_reviews.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['User', 'Rating', 'Title', 'Content', 'Date', 'Helpful', 'Not Helpful'])
+            
+            for review in reviews:
+                writer.writerow([
+                    review.user.username,
+                    review.rating,
+                    review.title,
+                    review.content,
+                    review.created_at.strftime('%Y-%m-%d'),
+                    review.helpful_count,
+                    review.not_helpful_count
+                ])
+            
+            return response
+        
+        elif format == 'excel':
+            output = BytesIO()
+            workbook = openpyxl.Workbook()
+            worksheet = workbook.active
+            worksheet.title = "Reviews"
+            
+            # كتابة العناوين
+            worksheet.append(['User', 'Rating', 'Title', 'Content', 'Date', 'Helpful', 'Not Helpful'])
+            
+            # كتابة البيانات
+            for review in reviews:
+                worksheet.append([
+                    review.user.username,
+                    review.rating,
+                    review.title,
+                    review.content,
+                    review.created_at.strftime('%Y-%m-%d'),
+                    review.helpful_count,
+                    review.not_helpful_count
+                ])
+            
+            workbook.save(output)
+            output.seek(0)
+            
+            response = HttpResponse(
+                output.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{product.name}_reviews.xlsx"'
+            return response
+        
+        return Response({'error': 'Invalid format'}, status=400)
+
     
     @action(detail=True, methods=['get'])
     def reviews(self, request, pk=None):
@@ -286,6 +351,8 @@ class ReviewApproveView(APIView):
         review.visible = request.data.get("visible", True)
         review.save()
         return Response({"detail": "Review approved"}, status=200)
+
+
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
@@ -299,3 +366,4 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notification.read = True
         notification.save()
         return Response({'status': 'marked as read'})
+
