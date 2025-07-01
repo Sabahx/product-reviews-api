@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
 from .models import Review, ReviewComment, ReviewVote ,Product,Notification
-from .serializers import ReviewSerializer 
+from .serializers import ReviewSerializer , NotificationSerializer
 from .permissions import IsOwnerOrReadOnly
 from datetime import timedelta
 from django.utils import timezone
@@ -75,6 +75,31 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(top).data)
         return Response({"message": "لا توجد مراجعات بعد"}, status=status.HTTP_404_NOT_FOUND)
 ##⬆
+    #mjd task9⬇
+    #عداد
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.views = models.F('views') + 1  # زيادة بدون تعارض مع السباق (race condition)
+        instance.save(update_fields=["views"])
+        instance.refresh_from_db()
+        return super().retrieve(request, *args, **kwargs)
+    
+    #لارسال ابلاغ
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def report(self, request, pk=None):
+        review = self.get_object()
+        reason = request.data.get('reason')
+        if not reason:
+            return Response({"error": "يجب تحديد سبب البلاغ"}, status=400)
+
+        report, created = ReviewReport.objects.get_or_create(review=review, user=request.user, defaults={'reason': reason})
+        if not created:
+            return Response({"error": "تم الإبلاغ مسبقًا"}, status=400)
+    
+        return Response({"message": "تم الإبلاغ عن المراجعة بنجاح"})
+
+    #⬆
+
 
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])

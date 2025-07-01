@@ -323,3 +323,7 @@ class BannedWordsTest(TestCase):
         self.assertIn('useless', BANNED_WORDS)
         self.assertIn('garbage', BANNED_WORDS)
         self.assertEqual(len(BANNED_WORDS), 7)  # Update this if you add more words
+#mjd task 9⬇
+from .models import Review, Product, ReviewReport
+
+
