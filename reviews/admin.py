@@ -1,14 +1,15 @@
 from django.contrib import admin
 from .models import Product, Review, ReviewComment
 from django.db.models import Q, Count
+from models import BannedWord
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ['name', 'price', 'created_at']
     
     
-# List of offensive words to filter (store this in settings or database in production)
-BANNED_WORDS = ['dump', 'incompetent', 'offensive1', 'useless', 'garbage', 'crap', 'badword1']
+# List of offensive words to filter
+BANNED_WORDS = BannedWord.objects.all()
 
 class OffensiveContentFilter(admin.SimpleListFilter):
     title = 'offensive content'

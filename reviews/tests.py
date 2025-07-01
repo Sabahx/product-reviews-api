@@ -315,14 +315,6 @@ class ReviewAdminTests(TestCase):
         updated_review = Review.objects.get(id=review.id)
         self.assertFalse(updated_review.visible)
         
-class BannedWordsTest(TestCase):
-    def test_banned_words_list(self):
-        """Test that banned words list contains expected words"""
-        from reviews.admin import BANNED_WORDS
-        self.assertIn('dump', BANNED_WORDS)
-        self.assertIn('useless', BANNED_WORDS)
-        self.assertIn('garbage', BANNED_WORDS)
-        self.assertEqual(len(BANNED_WORDS), 7)  # Update this if you add more words
 #mjd task 9⬇
 from .models import Review, Product, ReviewReport
 

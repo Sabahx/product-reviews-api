@@ -79,6 +79,7 @@ class ReviewInteraction(models.Model):
 
     class Meta:
         unique_together = ('review', 'user')
+
 class Notification(models.Model):
     user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
     message = models.TextField()
