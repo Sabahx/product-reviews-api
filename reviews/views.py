@@ -98,17 +98,19 @@ class ReviewViewSet(viewsets.ModelViewSet):
     
         return Response({"message": "تم الإبلاغ عن المراجعة بنجاح"})
 
-    #⬆
-
-
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    # Review approval by admin
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
     def approve(self, request, pk=None):
-        review = self.get_object()
-        review.visible = True
+        try:
+            review = Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            return Response(status=404)
+        
+        review.visible = request.data.get("visible", True)
         review.save()
-        return Response({'status': 'Review Approved'})
+        return Response({"detail": "Review approved"}, status=200)
     
+    # Commenting on reviews
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
         review = self.get_object()
@@ -363,19 +365,6 @@ class KeywordSearchReviewsView(APIView):
             for r in matching_reviews
         ]
         return Response(result)
-
-class ReviewApproveView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def patch(self, request, pk):
-        try:
-            review = Review.objects.get(pk=pk)
-        except Review.DoesNotExist:
-            return Response(status=404)
-        
-        review.visible = request.data.get("visible", True)
-        review.save()
-        return Response({"detail": "Review approved"}, status=200)
 
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
