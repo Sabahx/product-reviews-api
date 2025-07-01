@@ -106,9 +106,51 @@ class ReviewViewSet(viewsets.ModelViewSet):
         except Review.DoesNotExist:
             return Response(status=404)
         
-        review.visible = request.data.get("visible", True)
-        review.save()
-        return Response({"detail": "Review approved"}, status=200)
+        # Check if review is already approved
+        if review.visible:
+            return Response({
+                'status': 'already_approved',
+                'message': 'المراجعة موافق عليها مسبقاً',
+                'review_id': review.id,
+                'warning': 'لا يوجد إجراء مطلوب، المراجعة ظاهرة بالفعل'
+            }, status=200)
+        
+        try:    
+            review.visible = request.data.get("visible", True)
+            review.save()
+            
+            # Create notification for the reviewer
+            Notification.objects.create(
+                user=review.user,
+                message=f"تمت الموافقة على مراجعتك للمنتج {review.product.name}",
+                read = False,
+                created_at = timezone.now(),
+                related_review=f"/products/{review.product.id}/reviews/{review.id}",
+            )
+            
+            # Prepare detailed response
+            serializer = ReviewSerializer(review)
+            response_data = {
+                'status': 'success',
+                'message': 'تمت الموافقة على المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product': ProductSerializer(review.product),
+                    'approval_time': timezone.now(),
+                }
+            }
+            
+            return Response(response_data, status=200)
+        
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'فشل في الموافقة على المراجعة',
+                'error': str(e),
+                'error_code': 'REVIEW_APPROVAL_FAILED',
+                'suggested_action': 'التحقق من سجلات الخادم وإعادة المحاولة'
+            }, status=500)
     
     # Commenting on reviews
     @action(detail=True, methods=['get', 'post'])
