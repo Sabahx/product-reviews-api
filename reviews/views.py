@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
 from .models import Review, ReviewComment, ReviewVote ,Product, BannedWord
-from .serializers import ReviewSerializer 
+from .serializers import ReviewSerializer, BannedWordSerializer
 from .permissions import IsOwnerOrReadOnly
 from datetime import timedelta
 from django.utils import timezone
@@ -35,9 +35,36 @@ class ReviewViewSet(viewsets.ModelViewSet):
         product_id = self.request.query_params.get('product')
         if product_id:
             queryset = queryset.filter(product__id=product_id)
+        
+        # Laith: Added support for filtering by rating (e.g. ?rating=5)
         rating = self.request.query_params.get('rating')
         if rating:
-            queryset = queryset.filter(rating=rating)
+            try:
+                rating = int(rating)
+                if 1 <= rating <= 5:  # Validate rating is between 1-5
+                    queryset = queryset.filter(rating=rating)
+            except ValueError:
+                # If rating is not a valid integer, ignore the filter
+                pass
+                
+        # Laith: Added support for sorting reviews
+        sort_by = self.request.query_params.get('sort_by', 'created_at')
+        
+        if sort_by == 'newest':
+            # Sort by creation date (newest first)
+            queryset = queryset.order_by('-created_at')
+        elif sort_by == 'highest_rating':
+            # Sort by rating (highest first)
+            queryset = queryset.order_by('-rating')
+        elif sort_by == 'most_interactive':
+            # Sort by number of interactions (most interactions first)
+            queryset = queryset.annotate(
+                interaction_count=Count('interactions')
+            ).order_by('-interaction_count')
+        else:
+            # Default sorting by created_at (newest first)
+            queryset = queryset.order_by('-created_at')
+            
         return queryset
         
     ##mjd⬇
@@ -375,3 +402,25 @@ class BannedWordsReviewsView(APIView):
             })
         
         return Response(result)
+
+# Laith: Added viewset for managing banned words
+class BannedWordViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing banned words.
+    Only accessible by admin users.
+    """
+    queryset = BannedWord.objects.all().order_by('-created_at')
+    serializer_class = BannedWordSerializer
+    permission_classes = [IsAdminUser]  # Only admin users can access this endpoint
+
+    def get_queryset(self):
+        queryset = BannedWord.objects.all().order_by('-created_at')
+        # Support filtering by severity
+        severity = self.request.query_params.get('severity', None)
+        if severity is not None:
+            try:
+                severity = int(severity)
+                queryset = queryset.filter(severity=severity)
+            except ValueError:
+                pass
+        return queryset

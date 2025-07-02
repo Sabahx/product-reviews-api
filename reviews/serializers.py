@@ -3,7 +3,7 @@ from .models import Product, Review
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import ReviewComment, ReviewVote ,ReviewInteraction
+from .models import ReviewComment, ReviewVote, ReviewInteraction, BannedWord
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -33,8 +33,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 ##⬆
     class Meta:
         model = Review
-        fields = ['product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes']
-        read_only_fields = ['user', 'created_at', 'visible']
+        fields = ['id', 'product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes']
+        read_only_fields = ['id', 'user', 'created_at', 'visible']
 
 class RegisterSerializer(ModelSerializer):
     class Meta:
@@ -91,3 +91,10 @@ class ReviewInteractionSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'created_at']
 
 ##⬆
+
+# Laith: Added serializer for BannedWord model
+class BannedWordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BannedWord
+        fields = ['id', 'word', 'severity', 'created_at']
+        read_only_fields = ['created_at']

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from .models import Product, Review, BannedWord
+from .models import Product, Review, BannedWord, ReviewInteraction
 from django.utils import timezone
 from datetime import timedelta
 import json
@@ -358,7 +358,126 @@ class ReviewInteractionTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], self.review1.id)
         self.assertEqual(response.data['likes'], 2)
-####################################⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆⬆class ReviewAdminTests(TestCase):
+
+# Laith: Added tests for sorting and filtering reviews
+class ReviewSortingFilteringTestCase(APITestCase):
+    def setUp(self):
+        # Create users
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        self.user3 = User.objects.create_user(username='user3', password='pass123')
+        
+        # Create product
+        self.product = Product.objects.create(name="Test Product", description="Test Description", price=50)
+        
+        # Create reviews with different ratings and dates
+        # Review 1: Rating 5, newest
+        self.review1 = Review.objects.create(
+            product=self.product, 
+            user=self.user1, 
+            rating=5, 
+            review_text="Excellent product!", 
+            visible=True
+        )
+        
+        # Review 2: Rating 3, older
+        self.review2 = Review.objects.create(
+            product=self.product, 
+            user=self.user2, 
+            rating=3, 
+            review_text="Average product", 
+            visible=True
+        )
+        Review.objects.filter(pk=self.review2.pk).update(created_at=timezone.now() - timedelta(days=5))
+        
+        # Review 3: Rating 4, oldest
+        self.review3 = Review.objects.create(
+            product=self.product, 
+            user=self.user3, 
+            rating=4, 
+            review_text="Good product", 
+            visible=True
+        )
+        Review.objects.filter(pk=self.review3.pk).update(created_at=timezone.now() - timedelta(days=10))
+        
+        # Create interactions to test most_interactive sorting
+        # Review 1: 2 interactions
+        ReviewInteraction.objects.create(review=self.review1, user=self.user2, helpful=True)
+        ReviewInteraction.objects.create(review=self.review1, user=self.user3, helpful=True)
+        
+        # Review 3: 1 interaction
+        ReviewInteraction.objects.create(review=self.review3, user=self.user1, helpful=True)
+
+    def test_filter_by_rating(self):
+        """Test filtering reviews by rating"""
+        # Get only 5-star reviews
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&rating=5')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['rating'], 5)
+        
+        # Get only 3-star reviews
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&rating=3')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['rating'], 3)
+        
+        # Test invalid rating parameter
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&rating=invalid')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)  # Should return all reviews, ignoring invalid filter
+
+    def test_sort_by_newest(self):
+        """Test sorting reviews by creation date (newest first)"""
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&sort_by=newest')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        # First review should be review1 (newest)
+        self.assertEqual(response.data[0]['id'], self.review1.id)
+
+    def test_sort_by_highest_rating(self):
+        """Test sorting reviews by rating (highest first)"""
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&sort_by=highest_rating')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        # First review should be review1 (rating 5)
+        self.assertEqual(response.data[0]['rating'], 5)
+        # Second review should be review3 (rating 4)
+        self.assertEqual(response.data[1]['rating'], 4)
+        # Third review should be review2 (rating 3)
+        self.assertEqual(response.data[2]['rating'], 3)
+
+    def test_sort_by_most_interactive(self):
+        """Test sorting reviews by number of interactions"""
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&sort_by=most_interactive')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        # First review should be review1 (2 interactions)
+        self.assertEqual(response.data[0]['id'], self.review1.id)
+
+    def test_combined_filter_and_sort(self):
+        """Test combining filtering and sorting"""
+        # Create another 5-star review that's older
+        review4 = Review.objects.create(
+            product=self.product, 
+            user=self.user2, 
+            rating=5, 
+            review_text="Another excellent product!", 
+            visible=True
+        )
+        Review.objects.filter(pk=review4.pk).update(created_at=timezone.now() - timedelta(days=15))
+        
+        # Filter by 5-star rating and sort by newest
+        response = self.client.get(f'/api/reviews/?product={self.product.id}&rating=5&sort_by=newest')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        # First review should be review1 (newer 5-star)
+        self.assertEqual(response.data[0]['id'], self.review1.id)
+        # Second review should be review4 (older 5-star)
+        self.assertEqual(response.data[1]['id'], review4.id)
+
+
+class ReviewAdminTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.admin_user = User.objects.create_superuser(
@@ -429,4 +548,90 @@ class BannedWordsTest(TestCase):
         self.assertIn('useless', BANNED_WORDS)
         self.assertIn('garbage', BANNED_WORDS)
         self.assertEqual(len(BANNED_WORDS), 7)  # Update this if you add more words
+
+# Laith: Added tests for BannedWord API endpoints
+class BannedWordAPITestCase(APITestCase):
+    def setUp(self):
+        # Create admin user
+        self.admin = User.objects.create_superuser(
+            username='admin',
+            email='admin@example.com',
+            password='adminpassword'
+        )
+        
+        # Create regular user
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='user@example.com',
+            password='userpassword'
+        )
+        
+        # Create some banned words
+        self.banned_word1 = BannedWord.objects.create(word='inappropriate', severity=1)
+        self.banned_word2 = BannedWord.objects.create(word='offensive', severity=2)
+        self.banned_word3 = BannedWord.objects.create(word='vulgar', severity=3)
+        
+        # Create API client and authenticate admin
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
+    
+    def test_list_banned_words(self):
+        """Test that admins can list banned words"""
+        response = self.client.get('/api/admin/banned-words/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        words = [item['word'] for item in response.data]
+        self.assertIn('inappropriate', words)
+        self.assertIn('offensive', words)
+        self.assertIn('vulgar', words)
+    
+    def test_create_banned_word(self):
+        """Test that admins can create new banned words"""
+        data = {
+            'word': 'unacceptable',
+            'severity': 2
+        }
+        response = self.client.post('/api/admin/banned-words/', data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(BannedWord.objects.count(), 4)
+        self.assertTrue(BannedWord.objects.filter(word='unacceptable').exists())
+    
+    def test_update_banned_word(self):
+        """Test that admins can update banned words"""
+        data = {
+            'word': 'inappropriate',
+            'severity': 3  # Change severity from 1 to 3
+        }
+        response = self.client.put(f'/api/admin/banned-words/{self.banned_word1.id}/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.banned_word1.refresh_from_db()
+        self.assertEqual(self.banned_word1.severity, 3)
+    
+    def test_delete_banned_word(self):
+        """Test that admins can delete banned words"""
+        response = self.client.delete(f'/api/admin/banned-words/{self.banned_word1.id}/')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(BannedWord.objects.count(), 2)
+        self.assertFalse(BannedWord.objects.filter(word='inappropriate').exists())
+    
+    def test_non_admin_cannot_access(self):
+        """Test that non-admin users cannot access banned words API"""
+        self.client.force_authenticate(user=self.user)  # Switch to regular user
+        
+        # Test list
+        response = self.client.get('/api/admin/banned-words/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Test create
+        data = {'word': 'test', 'severity': 1}
+        response = self.client.post('/api/admin/banned-words/', data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Test update
+        response = self.client.put(f'/api/admin/banned-words/{self.banned_word2.id}/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        
+        # Test delete
+        response = self.client.delete(f'/api/admin/banned-words/{self.banned_word2.id}/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
