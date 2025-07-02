@@ -205,7 +205,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 message=f"تمت الموافقة على مراجعتك للمنتج {review.product.name}",
                 read = False,
                 created_at = timezone.now(),
-                related_review=f"/products/{review.product.id}/reviews/{review.id}",
+                related_review=review,
             )
             
             # Prepare detailed response
@@ -216,7 +216,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 'data': serializer.data,
                 'details': {
                     'review_id': review.id,
-                    'product': ProductSerializer(review.product),
+                    'product': ProductSerializer(review.product).data,
                     'approval_time': timezone.now(),
                 }
             }
@@ -244,14 +244,14 @@ class ReviewViewSet(viewsets.ModelViewSet):
             review.visible = False
             review.save()
             
-            # Create notification for the reviewer if reason was provided
-            if request.disapproval_reason:
+            disapproval_reason = request.data.get("disapproval_reason")
+            if disapproval_reason:
                 Notification.objects.create(
                     user=review.user,
-                    message=f"تم رفض مراجعتك للمنتج {review.product.name}: {review.disapproval_reason}",
+                    message=f"تم رفض مراجعتك للمنتج {review.product.name}: {disapproval_reason}",
                     read=False,
                     created_at=timezone.now(),
-                    related_review=f"/products/{review.product.id}/reviews/{review.id}",
+                    related_review=review,
                 )
             
             # Prepare detailed response
