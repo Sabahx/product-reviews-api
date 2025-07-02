@@ -21,6 +21,8 @@ import csv
 import openpyxl
 from io import BytesIO
 
+from reviews import serializers
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -28,8 +30,59 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            
+            # Get the saved review instance
+            review = serializer.instance
+            
+            # Success response
+            response_data = {
+                'status': 'success',
+                'message': 'تم إنشاء المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product_id': review.product.id,
+                    'created_at': review.created_at,
+                }
+            }
+            
+            return Response(response_data, status=201)
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'حدث خطأ أثناء إنشاء المراجعة',
+                'error': str(e),
+                'error_code': 'CREATION_FAILED'
+            }, status=500)
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        try:
+            review = serializer.save(user=self.request.user)
+            
+            # Set default visibility based on your requirements
+            review.visible = False  # Assuming reviews need approval
+            review.save()
+            
+            # Create admin notification
+            Notification.objects.create(
+                user=self.request.user,
+                message=f"تم إنشاء مراجعة جديدة للمنتج {review.product.name}",
+                related_review=review
+            )
+            
+        except serializers.ValidationError as e:
+            return Response({
+                'status': 'error',
+                'message': 'خطأ في إدخال البيانات',
+                'errors': e.detail,
+                'error_code': 'VALIDATION_ERROR'
+            }, status=400)
 
     def get_queryset(self):
         
@@ -125,17 +178,109 @@ class ReviewViewSet(viewsets.ModelViewSet):
     
         return Response({"message": "تم الإبلاغ عن المراجعة بنجاح"})
 
-    #⬆
-
-
-
-    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
+    # Review approval by admin
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
     def approve(self, request, pk=None):
-        review = self.get_object()
-        review.visible = True
-        review.save()
-        return Response({'status': 'Review Approved'})
+        try:
+            review = Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            return Response(status=404)
+        
+        # Check if review is already approved
+        if review.visible:
+            return Response({
+                'status': 'already_approved',
+                'message': 'المراجعة موافق عليها مسبقاً',
+                'review_id': review.id,
+                'warning': 'لا يوجد إجراء مطلوب، المراجعة ظاهرة بالفعل'
+            }, status=200)
+        
+        try:    
+            review.visible = request.data.get("visible", True)
+            review.save()
+            
+            # Create notification for the reviewer
+            Notification.objects.create(
+                user=review.user,
+                message=f"تمت الموافقة على مراجعتك للمنتج {review.product.name}",
+                read = False,
+                created_at = timezone.now(),
+                related_review=review,
+            )
+            
+            # Prepare detailed response
+            serializer = ReviewSerializer(review)
+            response_data = {
+                'status': 'success',
+                'message': 'تمت الموافقة على المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product': ProductSerializer(review.product).data,
+                    'approval_time': timezone.now(),
+                }
+            }
+            
+            return Response(response_data, status=200)
+        
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'فشل في الموافقة على المراجعة',
+                'error': str(e),
+                'error_code': 'REVIEW_APPROVAL_FAILED',
+                'suggested_action': 'التحقق من سجلات الخادم وإعادة المحاولة'
+            }, status=500)
     
+    # Review disapproval by admin
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
+    def disapprove(self, request, pk=None):
+        try:
+            review = Review.objects.get(pk=pk)
+        except Review.DoesNotExist:
+            return Response(status=404)
+        
+        try:    
+            review.visible = False
+            review.save()
+            
+            disapproval_reason = request.data.get("disapproval_reason")
+            if disapproval_reason:
+                Notification.objects.create(
+                    user=review.user,
+                    message=f"تم رفض مراجعتك للمنتج {review.product.name}: {disapproval_reason}",
+                    read=False,
+                    created_at=timezone.now(),
+                    related_review=review,
+                )
+            
+            # Prepare detailed response
+            serializer = ReviewSerializer(review)
+            response_data = {
+                'status': 'success',
+                'message': 'تم رفض المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product': ProductSerializer(review.product).data,
+                    'disapproval_time': timezone.now(),
+                }
+            }
+            
+            review.delete()
+            
+            return Response(response_data, status=200)
+        
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'فشل في رفض المراجعة',
+                'error': str(e),
+                'error_code': 'REVIEW_DISAPPROVAL_FAILED',
+                'suggested_action': 'التحقق من سجلات الخادم وإعادة المحاولة'
+            }, status=500)
+    
+    # Commenting on reviews
     @action(detail=True, methods=['get', 'post'])
     def comments(self, request, pk=None):
         review = self.get_object()
@@ -424,19 +569,6 @@ class KeywordSearchReviewsView(APIView):
             for r in matching_reviews
         ]
         return Response(result)
-
-class ReviewApproveView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def patch(self, request, pk):
-        try:
-            review = Review.objects.get(pk=pk)
-        except Review.DoesNotExist:
-            return Response(status=404)
-        
-        review.visible = request.data.get("visible", True)
-        review.save()
-        return Response({"detail": "Review approved"}, status=200)
 
 # Laith: Added view for filtering reviews with banned words for admin use
 class BannedWordsReviewsView(APIView):
