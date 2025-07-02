@@ -1,7 +1,6 @@
 from django.contrib import admin
-from .models import Product, Review, ReviewComment
+from .models import Product, Review, ReviewComment, BannedWord
 from django.db.models import Q, Count
-from models import BannedWord
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

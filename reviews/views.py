@@ -21,6 +21,8 @@ import csv
 import openpyxl
 from io import BytesIO
 
+from reviews import serializers
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -28,8 +30,59 @@ class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
     lookup_field = 'pk'
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            
+            # Get the saved review instance
+            review = serializer.instance
+            
+            # Success response
+            response_data = {
+                'status': 'success',
+                'message': 'تم إنشاء المراجعة بنجاح',
+                'data': serializer.data,
+                'details': {
+                    'review_id': review.id,
+                    'product_id': review.product.id,
+                    'created_at': review.created_at,
+                }
+            }
+            
+            return Response(response_data, status=201)
+
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'message': 'حدث خطأ أثناء إنشاء المراجعة',
+                'error': str(e),
+                'error_code': 'CREATION_FAILED'
+            }, status=500)
+
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        try:
+            review = serializer.save(user=self.request.user)
+            
+            # Set default visibility based on your requirements
+            review.visible = False  # Assuming reviews need approval
+            review.save()
+            
+            # Create admin notification
+            Notification.objects.create(
+                user=self.request.user,
+                message=f"تم إنشاء مراجعة جديدة للمنتج {review.product.name}",
+                related_review=review
+            )
+            
+        except serializers.ValidationError as e:
+            return Response({
+                'status': 'error',
+                'message': 'خطأ في إدخال البيانات',
+                'errors': e.detail,
+                'error_code': 'VALIDATION_ERROR'
+            }, status=400)
 
     def get_queryset(self):
         
