@@ -38,6 +38,9 @@ class Review(models.Model):
     review_text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     visible = models.BooleanField(default=False)
+    #mjd task9⬇
+    views = models.PositiveIntegerField(default=0)
+    #⬆
     #mjd
     sentiment = models.CharField(max_length=10, blank=True)
     # Laith: Added fields for banned words detection
@@ -94,6 +97,7 @@ class ReviewComment(models.Model):
     
     def __str__(self):
         return f"Comment by {self.user.username} on {self.review}"
+
 class ReviewVote(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='votes')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -118,3 +122,32 @@ class ReviewInteraction(models.Model):
 
     class Meta:
         unique_together = ('review', 'user')
+class Notification(models.Model):
+    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
+    message = models.TextField()
+    read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    related_review = models.ForeignKey(
+        Review, 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+class BannedWord(models.Model):
+    word = models.CharField(max_length=100, unique=True)
+    replacement = models.CharField(max_length=100, default='[delet-content]')
+
+#mjd task9⬇
+class ReviewReport(models.Model):
+    review = models.ForeignKey(Review, related_name='reports', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['review', 'user']
+#⬆

@@ -5,8 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.views import APIView
-from .models import Review, ReviewComment, ReviewVote ,Product, BannedWord
-from .serializers import ReviewSerializer, BannedWordSerializer
+from .models import Review, ReviewComment, ReviewVote ,Product, BannedWord, Notification
+from .serializers import ReviewSerializer, BannedWordSerializer, NotificationSerializer
 from .permissions import IsOwnerOrReadOnly
 from datetime import timedelta
 from django.utils import timezone
@@ -16,6 +16,11 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from .models import Product ,ReviewInteraction
 from .serializers import ProductSerializer
 from django.db import models
+from django.http import HttpResponse
+import csv
+import openpyxl
+from io import BytesIO
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
@@ -97,6 +102,31 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return Response(self.get_serializer(top).data)
         return Response({"message": "لا توجد مراجعات بعد"}, status=status.HTTP_404_NOT_FOUND)
 ##⬆
+    #mjd task9⬇
+    #عداد
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.views = models.F('views') + 1  # زيادة بدون تعارض مع السباق (race condition)
+        instance.save(update_fields=["views"])
+        instance.refresh_from_db()
+        return super().retrieve(request, *args, **kwargs)
+    
+    #لارسال ابلاغ
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def report(self, request, pk=None):
+        review = self.get_object()
+        reason = request.data.get('reason')
+        if not reason:
+            return Response({"error": "يجب تحديد سبب البلاغ"}, status=400)
+
+        report, created = ReviewReport.objects.get_or_create(review=review, user=request.user, defaults={'reason': reason})
+        if not created:
+            return Response({"error": "تم الإبلاغ مسبقًا"}, status=400)
+    
+        return Response({"message": "تم الإبلاغ عن المراجعة بنجاح"})
+
+    #⬆
+
 
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
@@ -200,6 +230,66 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAdminUser()]
         return [IsAuthenticatedOrReadOnly()]
+    @action(detail=True, methods=['get'])
+    def export_reviews(self, request, pk=None):
+        product = self.get_object()
+        reviews = product.reviews.filter(approved=True)
+        
+        format = request.query_params.get('format', 'csv')
+        
+        if format == 'csv':
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{product.name}_reviews.csv"'
+            
+            writer = csv.writer(response)
+            writer.writerow(['User', 'Rating', 'Title', 'Content', 'Date', 'Helpful', 'Not Helpful'])
+            
+            for review in reviews:
+                writer.writerow([
+                    review.user.username,
+                    review.rating,
+                    review.title,
+                    review.content,
+                    review.created_at.strftime('%Y-%m-%d'),
+                    review.helpful_count,
+                    review.not_helpful_count
+                ])
+            
+            return response
+        
+        elif format == 'excel':
+            output = BytesIO()
+            workbook = openpyxl.Workbook()
+            worksheet = workbook.active
+            worksheet.title = "Reviews"
+            
+            # كتابة العناوين
+            worksheet.append(['User', 'Rating', 'Title', 'Content', 'Date', 'Helpful', 'Not Helpful'])
+            
+            # كتابة البيانات
+            for review in reviews:
+                worksheet.append([
+                    review.user.username,
+                    review.rating,
+                    review.title,
+                    review.content,
+                    review.created_at.strftime('%Y-%m-%d'),
+                    review.helpful_count,
+                    review.not_helpful_count
+                ])
+            
+            workbook.save(output)
+            output.seek(0)
+            
+            response = HttpResponse(
+                output.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{product.name}_reviews.xlsx"'
+            return response
+        
+        return Response({'error': 'Invalid format'}, status=400)
+
     
     @action(detail=True, methods=['get'])
     def reviews(self, request, pk=None):
@@ -424,3 +514,18 @@ class BannedWordViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
         return queryset
+
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.read = True
+        notification.save()
+        return Response({'status': 'marked as read'})

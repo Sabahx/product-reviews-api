@@ -1,9 +1,9 @@
 from rest_framework import serializers
-from .models import Product, Review
+from .models import Product, Review ,ReviewReport, BannedWord
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import ReviewComment, ReviewVote, ReviewInteraction, BannedWord
+from .models import ReviewComment, ReviewVote ,ReviewInteraction,Notification,  BannedWord
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -19,7 +19,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
-    # في ReviewSerializer
+    views = serializers.IntegerField(read_only=True)
+
     #mjd⬇
     likes = serializers.SerializerMethodField()
     dislikes = serializers.SerializerMethodField()
@@ -31,9 +32,16 @@ class ReviewSerializer(serializers.ModelSerializer):
     def get_dislikes(self, obj):
         return obj.interactions.filter(helpful=False).count()
 ##⬆
+#mjd task9⬇
+    def get_has_report(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return obj.reports.filter(user=user).exists()
+        return False
+#⬆
     class Meta:
         model = Review
-        fields = ['id', 'product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes']
+        fields = ['id', 'product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes','views']
         read_only_fields = ['id', 'user', 'created_at', 'visible']
 
 class RegisterSerializer(ModelSerializer):
@@ -92,9 +100,23 @@ class ReviewInteractionSerializer(serializers.ModelSerializer):
 
 ##⬆
 
+
 # Laith: Added serializer for BannedWord model
 class BannedWordSerializer(serializers.ModelSerializer):
     class Meta:
         model = BannedWord
         fields = ['id', 'word', 'severity', 'created_at']
         read_only_fields = ['created_at']
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'read', 'created_at', 'related_review']
+
+#mjd task 9⬇
+class ReviewReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReviewReport
+        fields = ['id', 'review', 'user', 'reason', 'created_at']
+        read_only_fields = ['user', 'created_at']
+
