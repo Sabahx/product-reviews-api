@@ -37,6 +37,13 @@ class ReviewCommentInline(admin.TabularInline):
     model = ReviewComment
     extra = 0
     readonly_fields = ('user', 'text', 'created_at')
+ 
+# Laith: Added BannedWord admin to manage inappropriate content filtering
+@admin.register(BannedWord)
+class BannedWordAdmin(admin.ModelAdmin):
+    list_display = ['word', 'severity', 'created_at']
+    list_filter = ['severity', 'created_at']
+    search_fields = ['word']
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
@@ -44,9 +51,9 @@ class ReviewAdmin(admin.ModelAdmin):
                     'likes_count_display']
     list_filter = ['visible', 'rating', 'sentiment', 'created_at', OffensiveContentFilter]
     list_editable = ('visible',)
-    search_fields = ['review_text', 'user__username', 'product__name']
+    search_fields = ['review_text', 'user__username', 'product__name', 'banned_words_found']
     inlines = [ReviewCommentInline]
-    readonly_fields = ('sentiment', 'likes_count_display', 'created_at')
+    readonly_fields = ('sentiment', 'likes_count_display', 'created_at','sentiment_score', 'contains_banned_words', 'banned_words_found')
 
     fieldsets = (
         (None, {

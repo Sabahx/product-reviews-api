@@ -3,7 +3,7 @@ from .models import Product, Review ,ReviewReport, BannedWord
 from rest_framework.serializers import ModelSerializer
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import ReviewComment, ReviewVote ,ReviewInteraction,Notification
+from .models import ReviewComment, ReviewVote ,ReviewInteraction,Notification,  BannedWord
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -41,8 +41,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 #⬆
     class Meta:
         model = Review
-        fields = ['product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes','views']
-        read_only_fields = ['user', 'created_at', 'visible']
+        fields = ['id', 'product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes','views']
+        read_only_fields = ['id', 'user', 'created_at', 'visible']
 
 class RegisterSerializer(ModelSerializer):
     class Meta:
@@ -99,15 +99,19 @@ class ReviewInteractionSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'created_at']
 
 ##⬆
+
+
+# Laith: Added serializer for BannedWord model
+class BannedWordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BannedWord
+        fields = ['id', 'word', 'severity', 'created_at']
+        read_only_fields = ['created_at']
+
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'message', 'read', 'created_at', 'related_review']
-
-class BannedWordSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BannedWord
-        fields = ['id', 'word', 'replacement']
 
 #mjd task 9⬇
 class ReviewReportSerializer(serializers.ModelSerializer):
@@ -115,4 +119,4 @@ class ReviewReportSerializer(serializers.ModelSerializer):
         model = ReviewReport
         fields = ['id', 'review', 'user', 'reason', 'created_at']
         read_only_fields = ['user', 'created_at']
-#⬆
+
