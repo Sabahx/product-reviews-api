@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from textblob import TextBlob
 from django.utils import timezone
 from datetime import timedelta
+
 class Product(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
@@ -137,10 +138,6 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
-class BannedWord(models.Model):
-    word = models.CharField(max_length=100, unique=True)
-    replacement = models.CharField(max_length=100, default='[delet-content]')
 
 #mjd task9⬇
 class ReviewReport(models.Model):
