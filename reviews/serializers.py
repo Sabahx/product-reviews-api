@@ -1,10 +1,18 @@
 from rest_framework import serializers
-from .models import Product, Review ,ReviewReport, BannedWord
 from rest_framework.serializers import ModelSerializer
-from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import ReviewComment, ReviewVote ,ReviewInteraction,Notification,  BannedWord
+
 from django.contrib.auth import get_user_model
+from .models import (
+    Product,
+    Review,
+    ReviewReport,
+    BannedWord,
+    ReviewComment,
+    ReviewVote,
+    ReviewInteraction,
+    Notification
+)
+
 
 User = get_user_model()
 
@@ -21,28 +29,47 @@ class ReviewSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
     views = serializers.IntegerField(read_only=True)
 
-    #mjd⬇
     likes = serializers.SerializerMethodField()
     dislikes = serializers.SerializerMethodField()
+    has_report = serializers.SerializerMethodField()
+    user_interacted = serializers.SerializerMethodField()
+    user_voted = serializers.SerializerMethodField()
 
+
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'product', 'user', 'rating', 'review_text',
+            'created_at', 'visible', 'likes', 'dislikes', 'views',
+            'has_report', 'user_interacted','user_voted'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'visible']
+    #task 9 section 5 (sabah)
     def get_likes(self, obj):
         return obj.interactions.filter(helpful=True).count()
 
-
     def get_dislikes(self, obj):
         return obj.interactions.filter(helpful=False).count()
-##⬆
-#mjd task9⬇
+
     def get_has_report(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
             return obj.reports.filter(user=user).exists()
         return False
-#⬆
-    class Meta:
-        model = Review
-        fields = ['id', 'product', 'user', 'rating', 'review_text', 'created_at', 'visible','likes','dislikes','views']
-        read_only_fields = ['id', 'user', 'created_at', 'visible']
+
+    def get_user_interacted(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return obj.interactions.filter(user=user).exists()
+        return False
+    def get_user_voted(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+          vote = obj.votes.filter(user=user).first()
+          if vote:
+            return "helpful" if vote.helpful else "not_helpful"
+        return None
+
 
 class RegisterSerializer(ModelSerializer):
     class Meta:
