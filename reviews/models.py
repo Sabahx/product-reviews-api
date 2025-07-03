@@ -13,24 +13,27 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
-# Laith: Added BannedWord model to filter inappropriate content in reviews
+# Laith: Added BannedWord model to filter inappropriate content in reviews 
+#edited by sabah 
 class BannedWord(models.Model):
     SEVERITY_CHOICES = [
         (1, 'Low'),
         (2, 'Medium'),
         (3, 'High'),
     ]
-    
+
     word = models.CharField(max_length=100, unique=True)
     severity = models.IntegerField(choices=SEVERITY_CHOICES, default=1)
+    replacement = models.CharField(max_length=100, default='[delet-content]')
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         verbose_name = 'Banned Word'
         verbose_name_plural = 'Banned Words'
-        
+
     def __str__(self):
         return self.word
+
 
 class Review(models.Model):
     product = models.ForeignKey(Product, related_name='reviews', on_delete=models.CASCADE)
@@ -123,7 +126,6 @@ class ReviewInteraction(models.Model):
 
     class Meta:
         unique_together = ('review', 'user')
-
 class Notification(models.Model):
     user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
     message = models.TextField()
@@ -138,6 +140,7 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
 
 #mjd task9⬇
 class ReviewReport(models.Model):

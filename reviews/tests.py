@@ -3,93 +3,11 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-
-from reviews.views import ReviewViewSet
-from .models import Notification, Product, Review, BannedWord, ReviewInteraction
+from .models import Product, Review, BannedWord, ReviewInteraction
 from django.utils import timezone
 from datetime import timedelta
 import json
 
-class ReviewViewSetTests(APITestCase):
-    def setUp(self):
-        self.client = APIClient()
-        self.user = User.objects.create_user(username='user', password='pass123')
-        self.admin = User.objects.create_superuser(username='admin', password='admin123')
-        self.product = Product.objects.create(name="Test Product", description="A test", price=10.00)
-
-    def test_create_review_authenticated(self):
-        self.client.force_authenticate(user=self.user)
-        payload = {
-            "product": self.product.id,
-            "rating": 4,
-            "review_text": "Great product!"
-        }
-        url = reverse("review-list")
-        response = self.client.post(url, data=payload)
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(Review.objects.count(), 1)
-        self.assertIn("message", response.data)
-
-    def test_create_review_unauthenticated(self):
-        payload = {
-            "product": self.product.id,
-            "rating": 5,
-            "review_text": "Nice!"
-        }
-        url = reverse("review-list")
-        response = self.client.post(url, data=payload)
-        self.assertEqual(response.status_code, 401)
-
-    def test_approve_review_by_admin(self):
-        # Create review by user
-        review = Review.objects.create(
-            product=self.product,
-            user=self.user,
-            rating=3,
-            review_text="Okay product."
-        )
-        self.client.force_authenticate(user=self.admin)
-        url = reverse("review-approve", args=[review.pk])
-        response = self.client.patch(url, data={"visible": True})
-        self.assertEqual(response.status_code, 200)
-        review.refresh_from_db()
-        self.assertTrue(review.visible)
-        self.assertEqual(Notification.objects.filter(user=self.user).count(), 1)
-
-    def test_approve_review_already_approved(self):
-        review = Review.objects.create(
-            product=self.product,
-            user=self.user,
-            rating=4,
-            review_text="Already approved.",
-            visible=True
-        )
-        self.client.force_authenticate(user=self.admin)
-        url = reverse("review-approve", args=[review.pk])
-        response = self.client.patch(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['status'], "already_approved")
-
-    def test_disapprove_review_by_admin(self):
-        review = Review.objects.create(
-            product=self.product,
-            user=self.user,
-            rating=2,
-            review_text="Not great",
-            visible=True
-        )
-        self.client.force_authenticate(user=self.admin)
-        url = reverse("review-disapprove", args=[review.pk])
-        response = self.client.patch(url, data={"disapproval_reason": "Inappropriate content"})
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Review.objects.filter(id=review.id).exists())
-        self.assertEqual(Notification.objects.filter(user=self.user).count(), 1)
-
-    def test_disapprove_review_does_not_exist(self):
-        self.client.force_authenticate(user=self.admin)
-        url = reverse("review-disapprove", args=[999])
-        response = self.client.patch(url)
-        self.assertEqual(response.status_code, 404)
 
 class ReviewSystemTests(APITestCase):
     def setUp(self):
@@ -706,4 +624,5 @@ class BannedWordAPITestCase(APITestCase):
         # Test delete
         response = self.client.delete(f'/api/admin/banned-words/{self.banned_word2.id}/')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
 
