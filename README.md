@@ -19,8 +19,8 @@
 -تحليلات وإحصائيات متقدمة
 
 
-**##الميزات الرئيسية**
-**##للمستخدمين العاديين**
+### الميزات الرئيسية
+#### للمستخدمين العاديين
 -إنشاء حساب مستخدم جديد
 -إضافة مراجعات وتقييمات للمنتجات
 -التعليق على المراجعات
@@ -29,7 +29,7 @@
 -تلقي الإشعارات
 -عرض التحليلات والإحصائيات
 
-**##للمدراء**
+#### للمدراء
 -إدارة المنتجات
 -إدارة الكلمات المحظورة
 -الموافقة على المراجعات أو إخفائها
@@ -49,21 +49,25 @@
 ## التنصيب
 
 1-نسخ المشروع
-   ```bash
+   ``` bash
    git clone https://github.com/Sabahx/product-reviews-api
    cd product-reviews-api
+```
 2-إنشاء بيئة افتراضية وتثبيت المتطلبات:
 
-'''bash
+``` bash
 python -m venv venv
 venv\Scripts\activate    
 pip install -r requirements.txt
+```
 3-تنفيذ migrations:
 
-'''bash
+``` bash
 python manage.py makemigrations
 python manage.py migrate
+```
 4-تشغيل الخادم:
 
-'''bash
+``` bash
 python manage.py runserver
+```
