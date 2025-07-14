@@ -2,12 +2,12 @@ from datetime import timedelta
 import csv
 import openpyxl
 from io import BytesIO
-
-from django.shortcuts import get_object_or_404
+from django.shortcuts import redirect, render , get_object_or_404
 from django.utils import timezone
 from django.db import models
 from django.db.models import Q, Count, Avg, Subquery, OuterRef
-from django.http import HttpResponse
+from django.http import HttpResponse,HttpResponseRedirect
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions, status, generics
 from rest_framework.views import APIView
@@ -16,6 +16,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly, IsAdminUser
 )
+from django.contrib import messages
+from django.contrib.auth import login
 
 from .models import (
     Product,
@@ -24,7 +26,8 @@ from .models import (
     ReviewVote,
     ReviewInteraction,
     BannedWord,
-    Notification
+    Notification,
+    ReviewReport
 )
 from .serializers import (
     RegisterSerializer,
@@ -33,7 +36,8 @@ from .serializers import (
     ReviewCommentSerializer,
     ReviewVoteSerializer,
     BannedWordSerializer,
-    NotificationSerializer
+    NotificationSerializer,
+    User
 )
 from .permissions import IsOwnerOrReadOnly
 
@@ -44,6 +48,13 @@ class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
+
+    def helpful_count(self):
+        return self.interactions.filter(helpful=True).count()
+
+    def unhelpful_count(self):
+        return self.interactions.filter(helpful=False).count()
+
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -237,9 +248,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
 
 
 
@@ -545,10 +553,25 @@ class BannedWordViewSet(viewsets.ModelViewSet):
                 pass
         return queryset
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+@login_required
+def notifications_page(request):
+    # استدعاء الإشعارات الخاصة بالمستخدم لتمريرها للقالب
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    
+    context = {
+        'notifications': notifications
+    }
+    return render(request, 'notifications.html', context)
+
+
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
+    
     
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user).order_by('-created_at')
@@ -559,3 +582,194 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         notification.read = True
         notification.save()
         return Response({'status': 'marked as read'})
+
+def home(request):
+    
+    return render(request, 'home.html')
+   
+# task 10 sabah ( index,html)
+def product_list_view(request):
+    products = Product.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        reviews_count=Count('reviews')
+    )
+
+    # 🔍 فلترة حسب الاسم
+    search_query = request.GET.get('search', '')
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+
+    # ⬇️ الترتيب حسب طلب المستخدم
+    sort_by = request.GET.get('sort')
+    if sort_by == 'price_asc':
+        products = products.order_by('price')
+    elif sort_by == 'price_desc':
+        products = products.order_by('-price')
+    elif sort_by == 'rating':
+        products = products.order_by('-average_rating')
+    elif sort_by == 'reviews':
+        products = products.order_by('-reviews_count')
+
+    return render(request, 'index.html', {'products': products})
+
+#task 10 product_details.html
+
+def product_detail_view(request, pk):
+    product = get_object_or_404(Product.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        reviews_count=Count('reviews')
+    ), pk=pk)
+
+    reviews = Review.objects.filter(product=product, visible=True).select_related('user')
+
+    return render(request, 'product_detail.html', {
+        'product': product,
+        'reviews': reviews,
+    })
+
+@login_required
+def add_review(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+
+    if request.method == 'POST':
+        rating = int(request.POST.get('rating', 0))
+        text = request.POST.get('review_text', '')
+
+        Review.objects.create(
+            product=product,
+            user=request.user,
+            rating=rating,
+            review_text=text,
+            visible=False  # تحتاج موافقة
+        )
+
+    return redirect('product-detail', pk=product.id)
+
+@login_required
+def add_comment(request, pk):
+    review = get_object_or_404(Review, pk=pk)
+
+    if request.method == 'POST':
+        text = request.POST.get('text')
+        ReviewComment.objects.create(
+            review=review,
+            user=request.user,
+            text=text
+        )
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+@login_required
+def report_review(request, pk):
+    review = get_object_or_404(Review, pk=pk)
+    reason = request.POST.get('reason', 'غير محدد')
+
+    report, created = ReviewReport.objects.get_or_create(
+        review=review,
+        user=request.user,
+        defaults={'reason': reason}
+    )
+    if not created:
+        # تم الإبلاغ سابقًا
+        pass
+
+    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+
+def register_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "اسم المستخدم موجود بالفعل")
+            return redirect('register')
+
+        user = User.objects.create_user(username=username, password=password, email=email)
+        login(request, user)
+        messages.success(request, "تم إنشاء الحساب بنجاح")
+        return redirect('home')  # أو الصفحة التي تريد الانتقال لها
+
+    return render(request, 'register.html')
+
+class RegisterView(generics.CreateAPIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+"""def login_view(request):
+    form = AuthenticationForm(data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        login(request, form.get_user())
+        return redirect('/')
+    return render(request, 'login.html', {'form': form})
+
+"""
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login
+from django.shortcuts import render, redirect
+
+def login_view(request):
+    form = AuthenticationForm(data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        login(request, form.get_user())
+        # التقاط قيمة next إذا كانت موجودة في POST أو GET
+        next_url = request.POST.get('next') or request.GET.get('next')
+        if next_url:
+            return redirect(next_url)
+        return redirect('home')  # توجيه للصفحة الرئيسية في حال عدم وجود next
+    return render(request, 'login.html', {'form': form})
+
+@login_required
+def user_profile(request):
+    return render(request, 'user_profile.html')
+
+
+from django.contrib.auth import logout
+
+def logout_view(request):
+    logout(request)
+    return redirect('home')
+
+
+@login_required
+def mark_all_read(request):
+    notifications = Notification.objects.filter(user=request.user, read=False)
+    notifications.update(read=True)
+    return redirect('notifications')  # أو إلى أي صفحة تريد
+
+
+@login_required
+def clear_notifications(request):
+    Notification.objects.filter(user=request.user).delete()
+    return redirect('notifications')  # توجه إلى صفحة الإشعارات بعد الحذف
+
+
+from django.shortcuts import render
+from .models import Product  # تأكد أن هذا هو مسار الموديل الصحيح لديك
+
+def home(request):
+    # استعلام جلب المنتجات مع البحث والترتيب
+    products = Product.objects.all()
+
+    # فلترة بحث
+    search_query = request.GET.get('search', '')
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+
+    # ترتيب
+    sort_option = request.GET.get('sort', '')
+    if sort_option == 'price_asc':
+        products = products.order_by('price')
+    elif sort_option == 'price_desc':
+        products = products.order_by('-price')
+    elif sort_option == 'rating':
+        products = products.order_by('-average_rating')
+    elif sort_option == 'reviews':
+        products = products.order_by('-review_count')
+
+    context = {
+        'products': products,
+        'unread_notifications_count': 0,  # أو اجلب عدد الإشعارات غير المقروءة من المستخدم
+    }
+    return render(request, 'index.html', context)

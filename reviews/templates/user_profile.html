@@ -1,0 +1,132 @@
+{% extends 'home.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="profile-header">
+        <h1>ملفي الشخصي</h1>
+        <div class="user-info">
+            <span class="username">{{ user.username }}</span>
+            <span class="join-date">منضم منذ {{ user.date_joined|date:"Y-m-d" }}</span>
+        </div>
+    </div>
+    
+    <div class="profile-stats">
+        <div class="stat-card">
+            <span class="count">{{ user_reviews_count }}</span>
+            <span class="label">مراجعات</span>
+        </div>
+        <div class="stat-card">
+            <span class="count">{{ user_likes_received }}</span>
+            <span class="label">إعجابات</span>
+        </div>
+        <div class="stat-card">
+            <span class="count">{{ user_comments_count }}</span>
+            <span class="label">تعليقات</span>
+        </div>
+    </div>
+    
+    <div class="profile-tabs">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-toggle="tab" href="#my-reviews">مراجعاتي</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#liked-reviews">المراجعات المعجبة</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-toggle="tab" href="#settings">الإعدادات</a>
+            </li>
+        </ul>
+        
+        <div class="tab-content">
+            <!-- تبويب مراجعاتي -->
+            <div id="my-reviews" class="tab-pane active">
+                <h3>مراجعاتي</h3>
+                {% if user_reviews %}
+                <div class="reviews-list">
+                    {% for review in user_reviews %}
+                    <div class="review-card">
+                        <div class="review-header">
+                            <a href="{% url 'product_detail' review.product.id %}" class="product-name">{{ review.product.name }}</a>
+                            <span class="rating">{{ review.rating }} نجوم</span>
+                            <span class="date">{{ review.created_at|date:"Y-m-d" }}</span>
+                            {% if not review.visible %}
+                            <span class="badge badge-secondary">بانتظار الموافقة</span>
+                            {% endif %}
+                        </div>
+                        <div class="review-content">
+                            <p>{{ review.review_text }}</p>
+                        </div>
+                        <div class="review-footer">
+                            <span class="likes">{{ review.likes_count }} إعجاب</span>
+                            <span class="comments">{{ review.comments.count }} تعليق</span>
+                            <div class="actions">
+                                <a href="{% url 'edit_review' review.id %}" class="btn btn-sm btn-secondary">تعديل</a>
+                                <a href="{% url 'delete_review' review.id %}" class="btn btn-sm btn-danger">حذف</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">لم تقم بإضافة أي مراجعات بعد</div>
+                {% endif %}
+            </div>
+            
+            <!-- تبويب المراجعات المعجبة -->
+            <div id="liked-reviews" class="tab-pane">
+                <h3>المراجعات التي أعجبتني</h3>
+                {% if liked_reviews %}
+                <div class="reviews-list">
+                    {% for interaction in liked_reviews %}
+                    <div class="review-card">
+                        <div class="review-header">
+                            <a href="{% url 'product_detail' interaction.review.product.id %}" class="product-name">{{ interaction.review.product.name }}</a>
+                            <span class="user">بواسطة {{ interaction.review.user.username }}</span>
+                            <span class="rating">{{ interaction.review.rating }} نجوم</span>
+                            <span class="date">{{ interaction.review.created_at|date:"Y-m-d" }}</span>
+                        </div>
+                        <div class="review-content">
+                            <p>{{ interaction.review.review_text|truncatechars:100 }}</p>
+                        </div>
+                        <div class="review-footer">
+                            <span class="likes">{{ interaction.review.likes_count }} إعجاب</span>
+                            <span class="comments">{{ interaction.review.comments.count }} تعليق</span>
+                            <a href="{% url 'product_detail' interaction.review.product.id %}" class="btn btn-sm btn-primary">عرض كامل</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">لم تعجب بأي مراجعات بعد</div>
+                {% endif %}
+            </div>
+            
+            <!-- تبويب الإعدادات -->
+            <div id="settings" class="tab-pane">
+                <h3>إعدادات الحساب</h3>
+                <form method="post" class="settings-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>البريد الإلكتروني:</label>
+                        <input type="email" name="email" value="{{ user.email }}">
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور الجديدة:</label>
+                        <input type="password" name="new_password" placeholder="اتركه فارغاً إذا لم ترغب في التغيير">
+                    </div>
+                    <div class="form-group">
+                        <label>تأكيد كلمة المرور:</label>
+                        <input type="password" name="confirm_password">
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور الحالية (مطلوبة للتغييرات):</label>
+                        <input type="password" name="current_password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
