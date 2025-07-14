@@ -43,7 +43,6 @@ class ReviewDisplayTestCase(TestCase):
       self.assertFalse(response.data['user_interacted'])
       self.assertFalse(response.data['has_report'])
 
-
 #task9 mjd
 
 from rest_framework.test import APITestCase
@@ -87,3 +86,4 @@ def setUp(self):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.data)
+

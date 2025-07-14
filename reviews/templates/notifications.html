@@ -1,0 +1,36 @@
+{% extends 'home.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>إشعاراتي</h1>
+    
+    <div class="notifications-actions">
+        <a href="{% url 'mark_all_read' %}" class="btn btn-secondary">تعليم الكل كمقروء</a>
+        <a href="{% url 'clear_notifications' %}" class="btn btn-danger">حذف الكل</a>
+    </div>
+    
+    <div class="notifications-list">
+        {% for notification in notifications %}
+        <div class="notification {% if not notification.read %}unread{% endif %}">
+            <div class="notification-content">
+                <p>{{ notification.message }}</p>
+                {% if notification.related_review %}
+                <a href="{% url 'product_detail' notification.related_review.product.id %}" class="btn btn-sm btn-link">عرض المراجعة</a>
+                {% endif %}
+            </div>
+            <div class="notification-meta">
+                <span class="date">{{ notification.created_at|timesince }} ago</span>
+                <div class="actions">
+                    {% if not notification.read %}
+                    <a href="{% url 'mark_as_read' notification.id %}" class="btn btn-sm btn-success">تعليم كمقروء</a>
+                    {% endif %}
+                    <a href="{% url 'delete_notification' notification.id %}" class="btn btn-sm btn-danger">حذف</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="alert alert-info">لا توجد إشعارات</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

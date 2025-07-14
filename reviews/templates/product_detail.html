@@ -1,0 +1,98 @@
+{% extends "home.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+  <h2>{{ product.name }}</h2>
+
+  <!-- 🔹 تفاصيل المنتج -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <img src="https://via.placeholder.com/400x300.png?text=No+Image" class="img-fluid" alt="{{ product.name }}">
+    </div>
+    <div class="col-md-6">
+      <p>{{ product.description }}</p>
+      <p><strong>💰 السعر:</strong> {{ product.price }} ₺</p>
+      <p><strong>⭐ التقييم:</strong> {{ product.average_rating|floatformat:1 }}</p>
+      <p><strong>📝 عدد المراجعات:</strong> {{ product.reviews_count }}</p>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- 🔹 نموذج إضافة مراجعة -->
+  {% if user.is_authenticated %}
+    <h5>📝 أضف مراجعة</h5>
+    <form method="post" action="{% url 'add-review' product.id %}" class="mb-4">
+      {% csrf_token %}
+      <div class="mb-2">
+        <label>التقييم:</label>
+        <select name="rating" class="form-select">
+          {% for i in "12345" %}
+            <option value="{{ i }}">{{ i }} ⭐</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-2">
+        <label>نص المراجعة:</label>
+        <textarea name="review_text" class="form-control" rows="3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-success">إرسال المراجعة</button>
+    </form>
+  {% else %}
+    <p><a href="{% url 'login' %}">سجل الدخول</a> لكتابة مراجعة.</p>
+  {% endif %}
+
+  <hr>
+
+  <!-- 🔹 قائمة المراجعات -->
+  <h4>المراجعات:</h4>
+  {% for review in reviews %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">{{ review.user.username }}</h5>
+        <p>⭐ {{ review.rating }}<br>{{ review.review_text }}</p>
+        <p class="text-muted">
+          👍 مفيد: عدد التقييمات المفيدة: {{ review.helpful_count }}
+
+ |
+          عدد التقييمات غير المفيدة: {{ review.unhelpful_count }}
+        </p>
+
+        <!-- 🔹 زر الإبلاغ -->
+        {% if user.is_authenticated %}
+          <form method="post" action="{% url 'report-review' review.id %}" class="mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="reason" value="محتوى غير لائق">
+            <button type="submit" class="btn btn-sm btn-outline-danger">🚩 إبلاغ</button>
+          </form>
+        {% endif %}
+
+        <!-- 🔹 التعليقات على المراجعة -->
+        <div class="ms-3 mt-2">
+          <h6>💬 التعليقات:</h6>
+          {% for comment in review.comments.all %}
+            <div class="mb-1"><strong>{{ comment.user.username }}</strong>: {{ comment.text }}</div>
+          {% empty %}
+            <p class="text-muted">لا توجد تعليقات.</p>
+          {% endfor %}
+
+          <!-- 🔹 نموذج إضافة تعليق -->
+          {% if user.is_authenticated %}
+            <form method="post" action="{% url 'add-comment' review.id %}">
+              {% csrf_token %}
+              <div class="mb-2">
+                <textarea name="text" class="form-control" rows="2" placeholder="أضف تعليقك..."></textarea>
+              </div>
+              <button type="submit" class="btn btn-sm btn-outline-primary">إرسال التعليق</button>
+            </form>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  {% empty %}
+    <p>لا توجد مراجعات بعد.</p>
+  {% endfor %}
+
+</div>
+{% endblock %}

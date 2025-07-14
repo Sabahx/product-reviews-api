@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),  # تسجيل الدخول
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), # تحديث التوكن
     path('api/', include('reviews.urls')),  # باقي الواجهات
+    path('', include('reviews.urls')),
     
     # Swagger URLs
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),

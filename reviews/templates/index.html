@@ -1,0 +1,111 @@
+{% extends "home.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container my-5">
+
+  <h2 class="mb-4">قائمة المنتجات</h2>
+
+  <!-- ✅ شريط البحث والتصفية -->
+<form method="get" class="row mb-4">
+  <div class="col-md-6 mb-2">
+    <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="ابحث عن منتج...">
+  </div>
+  <div class="col-md-4 mb-2">
+    <select name="sort" class="form-select">
+      <option value="">ترتيب حسب</option>
+      <option value="price_asc" {% if request.GET.sort == 'price_asc' %}selected{% endif %}>السعر: تصاعدي</option>
+      <option value="price_desc" {% if request.GET.sort == 'price_desc' %}selected{% endif %}>السعر: تنازلي</option>
+      <option value="rating" {% if request.GET.sort == 'rating' %}selected{% endif %}>الأعلى تقييماً</option>
+      <option value="reviews" {% if request.GET.sort == 'reviews' %}selected{% endif %}>الأكثر مراجعات</option>
+    </select>
+  </div>
+  <div class="col-md-2 mb-2">
+    <button type="submit" class="btn btn-primary w-100">تصفية</button>
+  </div>
+</form>
+
+
+  <!-- ✅ حاوية عرض المنتجات -->
+  <div id="productsContainer" class="row g-4">
+    {% for product in products %}
+      <div class="col-md-4 product-item"
+           data-name="{{ product.name|lower }}"
+           data-price="{{ product.price }}"
+           data-rating="{{ product.average_rating|default:0 }}"
+           data-reviews="{{ product.reviews_count }}">
+        <div class="card h-100 shadow-sm">
+          <img src="https://via.placeholder.com/300x200.png?text=No+Image" class="card-img-top" alt="{{ product.name }}">
+          <div class="card-body">
+            <h5 class="card-title">{{ product.name }}</h5>
+            <p class="card-text text-muted">{{ product.description|truncatewords:15 }}</p>
+            <p class="mb-1">💰 السعر: {{ product.price }} ₺</p>
+            <p class="mb-1">⭐ التقييم: {{ product.average_rating|default:"0"|floatformat:1 }}</p>
+            <p class="mb-2">📝 عدد المراجعات: {{ product.reviews_count }}</p>
+            <a href="{% url 'product-detail' product.id %}" class="btn btn-primary w-100">عرض التفاصيل</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <p>لا توجد منتجات حالياً.</p>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ✅ سكربت فلترة بسيط -->
+<script>
+  const searchInput = document.getElementById('searchInput');
+  const sortSelect = document.getElementById('sortSelect');
+  const productItems = document.querySelectorAll('.product-item');
+
+  searchInput.addEventListener('input', filterProducts);
+  sortSelect.addEventListener('change', sortProducts);
+
+  function filterProducts() {
+    const searchTerm = searchInput.value.toLowerCase();
+    productItems.forEach(item => {
+      const name = item.dataset.name;
+      item.style.display = name.includes(searchTerm) ? 'block' : 'none';
+    });
+  }
+
+  function sortProducts() {
+    const sortBy = sortSelect.value;
+    const container = document.getElementById('productsContainer');
+    const productsArray = Array.from(productItems);
+
+    productsArray.sort((a, b) => {
+      let aValue, bValue;
+      switch (sortBy) {
+        case 'price_asc':
+          aValue = parseFloat(a.dataset.price);
+          bValue = parseFloat(b.dataset.price);
+          return aValue - bValue;
+        case 'price_desc':
+          aValue = parseFloat(a.dataset.price);
+          bValue = parseFloat(b.dataset.price);
+          return bValue - aValue;
+        case 'rating':
+          aValue = parseFloat(a.dataset.rating);
+          bValue = parseFloat(b.dataset.rating);
+          return bValue - aValue;
+        case 'reviews':
+          aValue = parseInt(a.dataset.reviews);
+          bValue = parseInt(b.dataset.reviews);
+          return bValue - aValue;
+        default:
+          return 0;
+      }
+    });
+
+    productsArray.forEach(p => container.appendChild(p));
+  }
+
+  function resetFilters() {
+    searchInput.value = '';
+    sortSelect.value = '';
+    productItems.forEach(item => item.style.display = 'block');
+  }
+</script>
+{% endblock %}
