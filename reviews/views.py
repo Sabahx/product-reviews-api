@@ -27,7 +27,8 @@ from .models import (
     ReviewInteraction,
     BannedWord,
     Notification,
-    ReviewReport
+    ReviewReport,
+    
 )
 from .serializers import (
     RegisterSerializer,
@@ -612,7 +613,6 @@ def product_list_view(request):
 
     return render(request, 'index.html', {'products': products})
 
-#task 10 product_details.html
 
 def product_detail_view(request, pk):
     product = get_object_or_404(Product.objects.annotate(
@@ -620,12 +620,17 @@ def product_detail_view(request, pk):
         reviews_count=Count('reviews')
     ), pk=pk)
 
-    reviews = Review.objects.filter(product=product, visible=True).select_related('user')
+    # تحميل المراجعات مع تعليقاتها المرتبطة
+    reviews = Review.objects.filter(product=product, visible=True)\
+        .select_related('user')\
+        .prefetch_related('comments')
 
     return render(request, 'product_detail.html', {
         'product': product,
         'reviews': reviews,
     })
+
+
 
 @login_required
 def add_review(request, pk):
@@ -640,24 +645,23 @@ def add_review(request, pk):
             user=request.user,
             rating=rating,
             review_text=text,
-            visible=False  # تحتاج موافقة
+            visible=True  # تحتاج موافقة
         )
 
     return redirect('product-detail', pk=product.id)
 
 @login_required
-def add_comment(request, pk):
-    review = get_object_or_404(Review, pk=pk)
-
+def add_comment(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
     if request.method == 'POST':
         text = request.POST.get('text')
-        ReviewComment.objects.create(
-            review=review,
-            user=request.user,
-            text=text
-        )
-
-    return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
+        if text:
+            ReviewComment.objects.create(
+                review=review,
+                user=request.user,
+                text=text
+            )
+    return redirect('product-detail', pk=review.product.id)
 
 @login_required
 def report_review(request, pk):
@@ -720,9 +724,37 @@ def login_view(request):
         return redirect('home')  # توجيه للصفحة الرئيسية في حال عدم وجود next
     return render(request, 'login.html', {'form': form})
 
+
 @login_required
 def user_profile(request):
-    return render(request, 'user_profile.html')
+    user = request.user
+
+    # مراجعات المستخدم
+    user_reviews = Review.objects.filter(user=user)
+    user_reviews_count = user_reviews.count()
+
+    # عدد الإعجابات التي استلمها المستخدم في مراجعاته
+    user_likes_received = ReviewInteraction.objects.filter(
+        review__user=user, helpful=True
+    ).count()
+
+    # عدد التعليقات التي كتبها المستخدم
+    user_comments_count = ReviewComment.objects.filter(user=user).count()
+
+    # المراجعات التي أعجبت المستخدم
+    liked_reviews = ReviewInteraction.objects.filter(
+        user=user, helpful=True
+    ).select_related('review', 'review__product', 'review__user')
+
+    context = {
+        'user_reviews': user_reviews,
+        'user_reviews_count': user_reviews_count,
+        'user_likes_received': user_likes_received,
+        'user_comments_count': user_comments_count,
+        'liked_reviews': liked_reviews,
+    }
+
+    return render(request, 'user_profile.html', context)
 
 
 from django.contrib.auth import logout
@@ -773,3 +805,44 @@ def home(request):
         'unread_notifications_count': 0,  # أو اجلب عدد الإشعارات غير المقروءة من المستخدم
     }
     return render(request, 'index.html', context)
+
+
+
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+
+@staff_member_required
+def admin_dashboard(request):
+    return render(request, 'admin_dashboard.html')
+
+
+
+@login_required
+def edit_review_view(request, review_id):
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+
+    if request.method == 'POST':
+        rating = request.POST.get('rating')
+        review_text = request.POST.get('review_text')
+
+        review.rating = rating
+        review.review_text = review_text
+        review.save()
+
+        messages.success(request, 'تم تحديث المراجعة بنجاح.')
+        return redirect('user_profile')
+
+    return render(request, 'edit_review.html', {'review': review})
+
+
+
+
+@login_required
+def delete_review(request, review_id):
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    if request.method == 'POST':
+        review.delete()
+        messages.success(request, 'تم حذف المراجعة بنجاح.')
+        return redirect('user_profile')
+    return redirect('user_profile')

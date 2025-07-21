@@ -1,8 +1,17 @@
-// تحديث عدد الإشعارات غير المقروءة
+// ✅ دالة جلب CSRF من الميتا
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// ✅ تحديث عدد الإشعارات غير المقروءة
 function updateNotificationCount() {
     $.ajax({
         url: '/api/notifications/unread_count/',
         method: 'GET',
+        headers: {
+            'X-CSRFToken': getCSRFToken()
+        },
         success: function(response) {
             const badge = $('.notification-badge');
             if (response.count > 0) {
@@ -14,33 +23,17 @@ function updateNotificationCount() {
     });
 }
 
-// تحديث الإشعارات كل دقيقة
-setInterval(updateNotificationCount, 60000);
-
-// تعليم الإشعار كمقروء عند النقر عليه
+// ✅ تعليم الإشعار كمقروء عند النقر عليه
 $(document).on('click', '.notification-item', function() {
     const notificationId = $(this).data('id');
     $.ajax({
         url: `/api/notifications/${notificationId}/mark_as_read/`,
         method: 'POST',
         headers: {
-            "X-CSRFToken": getCookie('csrftoken')
+            'X-CSRFToken': getCSRFToken()
         }
     });
 });
 
-// دالة مساعدة للحصول على قيمة الكوكي
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
+// ✅ تحديث الإشعارات كل دقيقة
+setInterval(updateNotificationCount, 60000);

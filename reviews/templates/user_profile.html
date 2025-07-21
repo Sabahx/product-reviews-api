@@ -62,7 +62,9 @@
                             <span class="comments">{{ review.comments.count }} تعليق</span>
                             <div class="actions">
                                 <a href="{% url 'edit_review' review.id %}" class="btn btn-sm btn-secondary">تعديل</a>
-                                <a href="{% url 'delete_review' review.id %}" class="btn btn-sm btn-danger">حذف</a>
+
+
+                                <form action="{% url 'delete_review' review.id %}" method="post" style="display:inline;"> {% csrf_token %} <button type="submit" class="btn btn-sm btn-danger">حذف</button> </form>
                             </div>
                         </div>
                     </div>
