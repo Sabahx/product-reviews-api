@@ -1,4 +1,10 @@
-// تهيئة الصفحة عند التحميل
+// ✅ دالة جلب CSRF من <meta>
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// ✅ تهيئة الصفحة عند التحميل
 $(document).ready(function() {
     // تفعيل عناصر Bootstrap التي تحتاج JS
     $('[data-toggle="tooltip"]').tooltip();

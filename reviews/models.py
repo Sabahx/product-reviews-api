@@ -44,7 +44,7 @@ class Review(models.Model):
     review_text = models.TextField()  # نص المراجعة
     created_at = models.DateTimeField(auto_now_add=True)  # وقت الكتابة
     visible = models.BooleanField(default=False)  # هل المراجعة ظاهرة للمستخدمين أم لا (تحتاج موافقة مثلًا)
-    
+    #comments = models.ForeignKey('ReviewComment', related_name='comments', on_delete=models.CASCADE)
     # mjd task9⬇
     views = models.PositiveIntegerField(default=0)  # عدد مرات المشاهدة للمراجعة
     #⬆
@@ -155,3 +155,5 @@ class ReviewReport(models.Model):
     class Meta:
         unique_together = ['review', 'user']  # لا يمكن تبليغ نفس المراجعة من نفس المستخدم أكثر من مرة
 #⬆
+
+

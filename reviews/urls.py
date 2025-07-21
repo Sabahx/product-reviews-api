@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import login_view,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review
+from .views import  delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review
 from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
@@ -46,6 +46,13 @@ urlpatterns = [
     path('notifications/mark_all_read/', views.mark_all_read, name='mark_all_read'),
     path('notifications/clear/', views.clear_notifications, name='clear_notifications'),
     path('', views.home, name='home'),  # الصفحة الرئيسية تعرض index.html
+    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('reviews/<int:review_id>/comment/', views.add_comment, name='add-comment'),
+    path('product/<int:product_id>/', product_detail_view, name='product_detail'),
+    path('reviews/<int:review_id>/edit/', edit_review_view, name='edit_review'),
+    path('reviews/<int:review_id>/delete/', delete_review, name='delete_review'),
+
+    
 
     
 ####

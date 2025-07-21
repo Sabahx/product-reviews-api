@@ -1,4 +1,10 @@
-// تهيئة الرسوم البيانية
+// ✅ دالة جلب CSRF من <meta>
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// ✅ تهيئة الرسوم البيانية
 function initCharts() {
     // مخطط توزيع المشاعر
     const sentimentCtx = document.getElementById('sentimentChart');
@@ -18,7 +24,7 @@ function initCharts() {
             }
         });
     }
-    
+
     // مخطط أفضل المنتجات
     const productsCtx = document.getElementById('topProductsChart');
     if (productsCtx) {
@@ -44,5 +50,5 @@ function initCharts() {
     }
 }
 
-// استدعاء الدالة عند تحميل الصفحة
+// ✅ استدعاء التهيئة بعد التحميل
 $(document).ready(initCharts);

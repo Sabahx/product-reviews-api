@@ -1,5 +1,6 @@
 {% extends "home.html" %}
 {% load static %}
+
 {% block content %}
 <div class="container my-5">
   <h2>{{ product.name }}</h2>
@@ -7,7 +8,7 @@
   <!-- 🔹 تفاصيل المنتج -->
   <div class="row mb-4">
     <div class="col-md-6">
-      <img src="https://via.placeholder.com/400x300.png?text=No+Image" class="img-fluid" alt="{{ product.name }}">
+      <img src="{% static 'images/no-image.png' %}" class="card-img-top" alt="{{ product.name }}">
     </div>
     <div class="col-md-6">
       <p>{{ product.description }}</p>
@@ -51,16 +52,30 @@
       <div class="card-body">
         <h5 class="card-title">{{ review.user.username }}</h5>
         <p>⭐ {{ review.rating }}<br>{{ review.review_text }}</p>
+
+        <!-- 🔹 الإحصائيات -->
         <p class="text-muted">
           👍 مفيد: عدد التقييمات المفيدة: {{ review.helpful_count }}
-
- |
           عدد التقييمات غير المفيدة: {{ review.unhelpful_count }}
         </p>
 
+        <!-- 🔹 أزرار التفاعل -->
+        {% if user.is_authenticated %}
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-sm btn-outline-success review-interaction"
+                  data-review-id="{{ review.id }}" data-helpful="true">
+            👍 مفيد (<span class="count">{{ review.likes }}</span>)
+          </button>
+          <button class="btn btn-sm btn-outline-danger review-interaction"
+                  data-review-id="{{ review.id }}" data-helpful="false">
+            👎 غير مفيد (<span class="count">{{ review.dislikes }}</span>)
+          </button>
+        </div>
+        {% endif %}
+
         <!-- 🔹 زر الإبلاغ -->
         {% if user.is_authenticated %}
-          <form method="post" action="{% url 'report-review' review.id %}" class="mb-2">
+          <form method="post" action="{% url 'report-review' review.id %}" class="mt-2">
             {% csrf_token %}
             <input type="hidden" name="reason" value="محتوى غير لائق">
             <button type="submit" class="btn btn-sm btn-outline-danger">🚩 إبلاغ</button>
@@ -68,7 +83,7 @@
         {% endif %}
 
         <!-- 🔹 التعليقات على المراجعة -->
-        <div class="ms-3 mt-2">
+        <div class="ms-3 mt-3">
           <h6>💬 التعليقات:</h6>
           {% for comment in review.comments.all %}
             <div class="mb-1"><strong>{{ comment.user.username }}</strong>: {{ comment.text }}</div>
@@ -93,6 +108,8 @@
   {% empty %}
     <p>لا توجد مراجعات بعد.</p>
   {% endfor %}
-
 </div>
+
+
+
 {% endblock %}
