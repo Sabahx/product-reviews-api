@@ -43,20 +43,16 @@ from .serializers import (
 )
 from .permissions import IsOwnerOrReadOnly
 
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
+authentication_classes = [JWTAuthentication]
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
-
-    def helpful_count(self):
-        return self.interactions.filter(helpful=True).count()
-
-    def unhelpful_count(self):
-        return self.interactions.filter(helpful=False).count()
-
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -115,8 +111,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
         
-    ##mjd⬇
-    @action(detail=True, methods=['post'],permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'],permission_classes=[IsAuthenticated],authentication_classes = [JWTAuthentication])
     def interact(self, request, pk=None):
         """المستخدم يقيّم المراجعة بأنها مفيدة أو غير مفيدة"""
         review = self.get_object()
@@ -125,13 +120,28 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if helpful is None:
             return Response({"error": "يجب إرسال قيمة الحقل 'helpful'"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # تقييد كل مستخدم بتفاعل واحد لكل مراجعة
-        interaction, created = ReviewInteraction.objects.update_or_create(
-            review=review,
-            user=request.user,
-            defaults={'helpful': helpful}
-        )
-        return Response({"message": "تم حفظ التفاعل"}, status=status.HTTP_200_OK)
+        try:
+            interaction = ReviewInteraction.objects.get(review=review, user=request.user)
+            if interaction.helpful == helpful:
+                # Same vote - remove it
+                interaction.delete()
+                user_vote = None
+            else:
+                # Different vote - update it
+                interaction.helpful = helpful
+                interaction.save()
+                user_vote = helpful
+        except ReviewInteraction.DoesNotExist:
+            # No previous vote - create new one
+            ReviewInteraction.objects.create(review=review, user=request.user, helpful=helpful)
+            user_vote = helpful
+        
+        return Response({
+            "message": "تم حفظ التفاعل",
+            "likes": review.likes,  # Make sure you have this method
+            "dislikes": review.dislikes,
+            "user_vote": user_vote
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='top-review')
     def top_review(self, request):
@@ -361,6 +371,7 @@ class ReviewVoteViewSet(viewsets.ModelViewSet):
 #task8 analytics section (sabah aljajeh)
 #معدل التقييم خلال فترة	
 class ProductAnalyticsView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -444,6 +455,7 @@ class TopReviewView(APIView):
             return Response({'detail': 'لا توجد مراجعات متاحة'}, status=404)
 """
 class KeywordSearchReviewsView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -576,6 +588,7 @@ def notifications_page(request):
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     
@@ -727,15 +740,7 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 
 def login_view(request):
-    form = AuthenticationForm(data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        # التقاط قيمة next إذا كانت موجودة في POST أو GET
-        next_url = request.POST.get('next') or request.GET.get('next')
-        if next_url:
-            return redirect(next_url)
-        return redirect('home')  # توجيه للصفحة الرئيسية في حال عدم وجود next
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'login.html')
 
 
 @login_required

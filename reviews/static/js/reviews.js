@@ -1,13 +1,11 @@
 (function ($) {
 
-  // ✅ دالة جلب CSRF من الـ <meta>
-function getCSRFToken() {
-  return window.CSRF_TOKEN;
-}
+  // ✅ جلب الـ JWT Access Token من LocalStorage
+  function getJWTToken() {
+    return localStorage.getItem("access_token");
+  }
 
-
-
-  // ✅ التفاعل (مفيد / غير مفيد)
+  // ✅ التفاعل (مفيد / غير مفيد) باستخدام JWT
   $(document).on('click', '.review-interaction', function () {
     const btn = $(this);
     const reviewId = btn.data('review-id');
@@ -16,18 +14,25 @@ function getCSRFToken() {
     $.ajax({
       url: `/api/reviews/${reviewId}/interact/`,
       method: 'POST',
-      data: { helpful: isHelpful },
-      headers: { "X-CSRFToken": getCSRFToken() },
-      success: function () {
-        location.reload(); // نحدّث الصفحة لعرض الأرقام المحدثة
+      contentType: 'application/json',
+      data: JSON.stringify({ helpful: isHelpful }),
+      headers: {
+        "Authorization": `Bearer ${getJWTToken()}`
       },
-      error: function () {
-        alert('⚠️ فشل في إرسال التفاعل.');
+      success: function () {
+        location.reload();
+      },
+      error: function (xhr) {
+        if (xhr.status === 401) {
+          alert('⚠️ يجب تسجيل الدخول باستخدام JWT.');
+        } else {
+          alert('⚠️ فشل في إرسال التفاعل.');
+        }
       }
     });
   });
 
-  // ✅ التبليغ عن مراجعة (🚩)
+  // ✅ التبليغ عن مراجعة باستخدام JWT
   $(document).on('submit', 'form[action^="/report/"]', function (e) {
     e.preventDefault();
     const form = $(this);
@@ -36,13 +41,19 @@ function getCSRFToken() {
       url: form.attr('action'),
       method: 'POST',
       data: form.serialize(),
-      headers: { "X-CSRFToken": getCSRFToken() },
+      headers: {
+        "Authorization": `Bearer ${getJWTToken()}`
+      },
       success: function () {
         alert('✅ تم الإبلاغ عن المراجعة.');
         location.reload();
       },
-      error: function () {
-        alert('⚠️ فشل في إرسال البلاغ.');
+      error: function (xhr) {
+        if (xhr.status === 401) {
+          alert('⚠️ يجب تسجيل الدخول باستخدام JWT.');
+        } else {
+          alert('⚠️ فشل في إرسال البلاغ.');
+        }
       }
     });
   });

@@ -83,10 +83,20 @@ class Review(models.Model):
             self.banned_words_found = None
 
         super().save(*args, **kwargs)
-
-    # ✅ عدد التفاعلات المفيدة للمراجعة (helpful=True)
-    def likes_count(self):
+    
+    @property
+    def likes(self):
         return self.interactions.filter(helpful=True).count()
+
+    @property
+    def dislikes(self):
+        return self.interactions.filter(helpful=False).count()
+    
+    def user_vote(self, user):
+        try:
+            return self.interactions.get(user=user).helpful
+        except ReviewInteraction.DoesNotExist:
+            return None
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} - {self.rating}"
@@ -130,6 +140,9 @@ class ReviewInteraction(models.Model):
 
     class Meta:
         unique_together = ('review', 'user')
+    
+    def __str__(self):
+        return f"{self.user.username} {'liked' if self.helpful else 'disliked'} review {self.review.id}"
 
 # ✅ إشعارات للمستخدمين (مثلاً: أحدهم علّق على مراجعتك، أو أعجب بها)
 class Notification(models.Model):
