@@ -263,12 +263,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             reviews_count=Count('reviews')
         )
 
-
-    # السماح فقط للمشرفين بالإضافة أو التعديل، وباقي المستخدمين للقراءة فقط
     def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
-        return [IsAuthenticatedOrReadOnly()]
+            permission_classes = [IsAdminUser]
+        else:
+            permission_classes = [IsAuthenticatedOrReadOnly]
+        return [permission() for permission in permission_classes]
+    
     @action(detail=True, methods=['get'])
     def export_reviews(self, request, pk=None):
         product = self.get_object()

@@ -8,8 +8,8 @@ class ProductAdmin(admin.ModelAdmin):
     
     
 # List of offensive words to filter
-"""BANNED_WORDS = BannedWord.objects.all()
-"""
+BANNED_WORDS = BannedWord.objects.all()
+
 class OffensiveContentFilter(admin.SimpleListFilter):
     title = 'offensive content'
     parameter_name = 'offensive'
