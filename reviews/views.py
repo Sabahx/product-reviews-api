@@ -807,6 +807,12 @@ def home(request):
     search_query = request.GET.get('search', '')
     if search_query:
         products = products.filter(name__icontains=search_query)
+        
+    # Star rating filter (e.g., ?rating=4)
+    rating_filter = request.GET.get('rating')
+    if rating_filter and rating_filter.isdigit():
+        rating_filter = int(rating_filter)
+        products = products.filter(average_rating__gte=rating_filter,average_rating__lt=rating_filter+1)
 
     # Sorting
     sort_option = request.GET.get('sort', '')
