@@ -784,29 +784,35 @@ def clear_notifications(request):
 from django.shortcuts import render
 from .models import Product  # تأكد أن هذا هو مسار الموديل الصحيح لديك
 
-def home(request):
-    # استعلام جلب المنتجات مع البحث والترتيب
-    products = Product.objects.all()
+from django.db.models import Avg, Count
+from django.shortcuts import render, get_object_or_404
 
-    # فلترة بحث
+def home(request):
+    # Get all products with annotations (average_rating and reviews_count)
+    products = Product.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        reviews_count=Count('reviews')
+    )
+
+    # Search filtering
     search_query = request.GET.get('search', '')
     if search_query:
         products = products.filter(name__icontains=search_query)
 
-    # ترتيب
+    # Sorting
     sort_option = request.GET.get('sort', '')
     if sort_option == 'price_asc':
         products = products.order_by('price')
     elif sort_option == 'price_desc':
         products = products.order_by('-price')
     elif sort_option == 'rating':
-        products = products.order_by('-average_rating')
+        products = products.order_by('-average_rating')  # Now works because of annotation
     elif sort_option == 'reviews':
-        products = products.order_by('-review_count')
+        products = products.order_by('-reviews_count')  # Fixed typo (was 'review_count')
 
     context = {
         'products': products,
-        'unread_notifications_count': 0,  # أو اجلب عدد الإشعارات غير المقروءة من المستخدم
+        'unread_notifications_count': 0,  # Or fetch real unread notifications
     }
     return render(request, 'index.html', context)
 

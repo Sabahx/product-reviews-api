@@ -38,7 +38,7 @@
           <div class="card-body">
             <h5 class="card-title">{{ product.name }}</h5>
             <p class="card-text text-muted">{{ product.description|truncatewords:15 }}</p>
-            <p class="mb-1">💰 السعر: {{ product.price }} ₺</p>
+            <p class="mb-1">💰 السعر: {{ product.price }} $</p>
             <p class="mb-1">⭐ التقييم: {{ product.average_rating|default:"0"|floatformat:1 }}</p>
             <p class="mb-2">📝 عدد المراجعات: {{ product.reviews_count }}</p>
             <a href="{% url 'product-detail' product.id %}" class="btn btn-primary w-100">عرض التفاصيل</a>
