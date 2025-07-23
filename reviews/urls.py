@@ -51,13 +51,5 @@ urlpatterns = [
     path('product/<int:product_id>/', product_detail_view, name='product_detail'),
     path('reviews/<int:review_id>/edit/', edit_review_view, name='edit_review'),
     path('reviews/<int:review_id>/delete/', delete_review, name='delete_review'),
-
-    
-
-    
-####
-
-    
-    
 ]
 

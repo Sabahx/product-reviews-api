@@ -23,6 +23,7 @@ from .models import (
     Product,
     Review,
     ReviewComment,
+    ReviewView,
     ReviewVote,
     ReviewInteraction,
     BannedWord,
@@ -42,20 +43,16 @@ from .serializers import (
 )
 from .permissions import IsOwnerOrReadOnly
 
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
+authentication_classes = [JWTAuthentication]
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
-
-    def helpful_count(self):
-        return self.interactions.filter(helpful=True).count()
-
-    def unhelpful_count(self):
-        return self.interactions.filter(helpful=False).count()
-
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -114,8 +111,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
         
-    ##mjd⬇
-    @action(detail=True, methods=['post'],permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'],permission_classes=[IsAuthenticated],authentication_classes = [JWTAuthentication])
     def interact(self, request, pk=None):
         """المستخدم يقيّم المراجعة بأنها مفيدة أو غير مفيدة"""
         review = self.get_object()
@@ -124,13 +120,28 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if helpful is None:
             return Response({"error": "يجب إرسال قيمة الحقل 'helpful'"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # تقييد كل مستخدم بتفاعل واحد لكل مراجعة
-        interaction, created = ReviewInteraction.objects.update_or_create(
-            review=review,
-            user=request.user,
-            defaults={'helpful': helpful}
-        )
-        return Response({"message": "تم حفظ التفاعل"}, status=status.HTTP_200_OK)
+        try:
+            interaction = ReviewInteraction.objects.get(review=review, user=request.user)
+            if interaction.helpful == helpful:
+                # Same vote - remove it
+                interaction.delete()
+                user_vote = None
+            else:
+                # Different vote - update it
+                interaction.helpful = helpful
+                interaction.save()
+                user_vote = helpful
+        except ReviewInteraction.DoesNotExist:
+            # No previous vote - create new one
+            ReviewInteraction.objects.create(review=review, user=request.user, helpful=helpful)
+            user_vote = helpful
+        
+        return Response({
+            "message": "تم حفظ التفاعل",
+            "likes": review.likes,  # Make sure you have this method
+            "dislikes": review.dislikes,
+            "user_vote": user_vote
+        }, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='top-review')
     def top_review(self, request):
@@ -263,12 +274,16 @@ class ProductViewSet(viewsets.ModelViewSet):
             reviews_count=Count('reviews')
         )
 
-
-    # السماح فقط للمشرفين بالإضافة أو التعديل، وباقي المستخدمين للقراءة فقط
     def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
-        return [IsAuthenticatedOrReadOnly()]
+            permission_classes = [IsAdminUser]
+        else:
+            permission_classes = [IsAuthenticatedOrReadOnly]
+        return [permission() for permission in permission_classes]
+    
     @action(detail=True, methods=['get'])
     def export_reviews(self, request, pk=None):
         product = self.get_object()
@@ -356,6 +371,7 @@ class ReviewVoteViewSet(viewsets.ModelViewSet):
 #task8 analytics section (sabah aljajeh)
 #معدل التقييم خلال فترة	
 class ProductAnalyticsView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -439,6 +455,7 @@ class TopReviewView(APIView):
             return Response({'detail': 'لا توجد مراجعات متاحة'}, status=404)
 """
 class KeywordSearchReviewsView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -571,6 +588,7 @@ def notifications_page(request):
 
 class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NotificationSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     
@@ -624,6 +642,14 @@ def product_detail_view(request, pk):
     reviews = Review.objects.filter(product=product, visible=True)\
         .select_related('user')\
         .prefetch_related('comments')
+        
+    # Log a view for each review when accessed
+    for review in reviews:
+        ReviewView.objects.get_or_create(
+            review=review,
+            user=request.user if request.user.is_authenticated else None,
+            ip_address=request.META.get('REMOTE_ADDR', '') if not request.user.is_authenticated else ''
+        )
 
     return render(request, 'product_detail.html', {
         'product': product,
@@ -714,15 +740,7 @@ from django.contrib.auth import login
 from django.shortcuts import render, redirect
 
 def login_view(request):
-    form = AuthenticationForm(data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        # التقاط قيمة next إذا كانت موجودة في POST أو GET
-        next_url = request.POST.get('next') or request.GET.get('next')
-        if next_url:
-            return redirect(next_url)
-        return redirect('home')  # توجيه للصفحة الرئيسية في حال عدم وجود next
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'login.html')
 
 
 @login_required
@@ -780,29 +798,41 @@ def clear_notifications(request):
 from django.shortcuts import render
 from .models import Product  # تأكد أن هذا هو مسار الموديل الصحيح لديك
 
-def home(request):
-    # استعلام جلب المنتجات مع البحث والترتيب
-    products = Product.objects.all()
+from django.db.models import Avg, Count
+from django.shortcuts import render, get_object_or_404
 
-    # فلترة بحث
+def home(request):
+    # Get all products with annotations (average_rating and reviews_count)
+    products = Product.objects.annotate(
+        average_rating=Avg('reviews__rating'),
+        reviews_count=Count('reviews')
+    )
+
+    # Search filtering
     search_query = request.GET.get('search', '')
     if search_query:
         products = products.filter(name__icontains=search_query)
+        
+    # Star rating filter (e.g., ?rating=4)
+    rating_filter = request.GET.get('rating')
+    if rating_filter and rating_filter.isdigit():
+        rating_filter = int(rating_filter)
+        products = products.filter(average_rating__gte=rating_filter,average_rating__lt=rating_filter+1)
 
-    # ترتيب
+    # Sorting
     sort_option = request.GET.get('sort', '')
     if sort_option == 'price_asc':
         products = products.order_by('price')
     elif sort_option == 'price_desc':
         products = products.order_by('-price')
     elif sort_option == 'rating':
-        products = products.order_by('-average_rating')
+        products = products.order_by('-average_rating')  # Now works because of annotation
     elif sort_option == 'reviews':
-        products = products.order_by('-review_count')
+        products = products.order_by('-reviews_count')  # Fixed typo (was 'review_count')
 
     context = {
         'products': products,
-        'unread_notifications_count': 0,  # أو اجلب عدد الإشعارات غير المقروءة من المستخدم
+        'unread_notifications_count': 0,  # Or fetch real unread notifications
     }
     return render(request, 'index.html', context)
 

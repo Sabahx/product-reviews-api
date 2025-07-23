@@ -8,9 +8,24 @@
 
   <!-- ✅ شريط البحث والتصفية -->
   <form method="get" class="row mb-4">
-    <div class="col-md-6 mb-2">
+    <!-- Search Input -->
+    <div class="col-md-4 mb-2">
       <input type="text" id="searchInput" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="ابحث عن منتج...">
     </div>
+
+    <!-- Rating Filter -->
+    <div class="col-md-2 mb-2">
+      <select name="rating" class="form-select">
+        <option value="">التقييم</option>
+        <option value="5" {% if request.GET.rating == '5' %}selected{% endif %}>★★★★★ (5)</option>
+        <option value="4" {% if request.GET.rating == '4' %}selected{% endif %}>★★★★☆ (4)</option>
+        <option value="3" {% if request.GET.rating == '3' %}selected{% endif %}>★★★☆☆ (3)</option>
+        <option value="2" {% if request.GET.rating == '2' %}selected{% endif %}>★★☆☆☆ (2)</option>
+        <option value="1" {% if request.GET.rating == '1' %}selected{% endif %}>★☆☆☆☆ (1)</option>
+      </select>
+    </div>
+
+    <!-- Sort Options -->
     <div class="col-md-4 mb-2">
       <select id="sortSelect" name="sort" class="form-select">
         <option value="">ترتيب حسب</option>
@@ -20,6 +35,8 @@
         <option value="reviews" {% if request.GET.sort == 'reviews' %}selected{% endif %}>الأكثر مراجعات</option>
       </select>
     </div>
+
+    <!-- Submit Button -->
     <div class="col-md-2 mb-2">
       <button type="submit" class="btn btn-primary w-100">تصفية</button>
     </div>
@@ -38,7 +55,7 @@
           <div class="card-body">
             <h5 class="card-title">{{ product.name }}</h5>
             <p class="card-text text-muted">{{ product.description|truncatewords:15 }}</p>
-            <p class="mb-1">💰 السعر: {{ product.price }} ₺</p>
+            <p class="mb-1">💰 السعر: {{ product.price }} $</p>
             <p class="mb-1">⭐ التقييم: {{ product.average_rating|default:"0"|floatformat:1 }}</p>
             <p class="mb-2">📝 عدد المراجعات: {{ product.reviews_count }}</p>
             <a href="{% url 'product-detail' product.id %}" class="btn btn-primary w-100">عرض التفاصيل</a>
