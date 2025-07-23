@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Review, ReviewComment, BannedWord
+from .models import Product, Review, ReviewComment, BannedWord, ReviewView
 from django.db.models import Q, Count
 
 @admin.register(Product)
@@ -108,3 +108,9 @@ class ReviewCommentAdmin(admin.ModelAdmin):
     list_filter = ('created_at',)
     search_fields = ('text', 'user__username', 'review__product__name')
     readonly_fields = ('user', 'review', 'created_at')
+    
+@admin.register(ReviewView)
+class ReviewViewAdmin(admin.ModelAdmin):
+    list_display = ('review', 'user', 'ip_address', 'viewed_at')
+    list_filter = ('viewed_at',)
+    search_fields = ('review__title', 'user__username', 'ip_address')

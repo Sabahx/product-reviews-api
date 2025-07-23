@@ -46,9 +46,7 @@ class Review(models.Model):
     visible = models.BooleanField(default=False)  # هل المراجعة ظاهرة للمستخدمين أم لا (تحتاج موافقة مثلًا)
     #comments = models.ForeignKey('ReviewComment', related_name='comments', on_delete=models.CASCADE)
     # mjd task9⬇
-    views = models.PositiveIntegerField(default=0)  # عدد مرات المشاهدة للمراجعة
-    #⬆
-
+    # views = models.ForeignKey(ReviewView, related_name='reviews', on_delete=models.CASCADE) # عدد مرات المشاهدة للمراجعة
     sentiment = models.CharField(max_length=10, blank=True)  # الحالة العاطفية: إيجابي/سلبي/محايد (تحليل آلي)
 
     # Laith: Added fields for banned words detection
@@ -154,6 +152,15 @@ class ReviewReport(models.Model):
 
     class Meta:
         unique_together = ['review', 'user']  # لا يمكن تبليغ نفس المراجعة من نفس المستخدم أكثر من مرة
-#⬆
+        
+class ReviewView(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='views')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)  # Null if anonymous
+    ip_address = models.CharField(max_length=45, blank=True)  # Store IP for anonymous users
+    viewed_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('review', 'user', 'ip_address')  # Prevent duplicate views
 
+    def __str__(self):
+        return f"{self.user or self.ip_address} viewed review {self.review.id}"

@@ -53,6 +53,10 @@
         <h5 class="card-title">{{ review.user.username }}</h5>
         <p>⭐ {{ review.rating }}<br>{{ review.review_text }}</p>
 
+        <p class="view-count">
+          <i class="fas fa-eye"></i> {{ review.views.count }}
+        </p>
+        
         <!-- 🔹 الإحصائيات -->
         <p class="text-muted">
           👍 مفيد: عدد التقييمات المفيدة: {{ review.helpful_count }}

@@ -23,6 +23,7 @@ from .models import (
     Product,
     Review,
     ReviewComment,
+    ReviewView,
     ReviewVote,
     ReviewInteraction,
     BannedWord,
@@ -628,6 +629,14 @@ def product_detail_view(request, pk):
     reviews = Review.objects.filter(product=product, visible=True)\
         .select_related('user')\
         .prefetch_related('comments')
+        
+    # Log a view for each review when accessed
+    for review in reviews:
+        ReviewView.objects.get_or_create(
+            review=review,
+            user=request.user if request.user.is_authenticated else None,
+            ip_address=request.META.get('REMOTE_ADDR', '') if not request.user.is_authenticated else ''
+        )
 
     return render(request, 'product_detail.html', {
         'product': product,
