@@ -1,5 +1,6 @@
 from datetime import timedelta
 import csv
+import json
 import openpyxl
 from io import BytesIO
 from django.shortcuts import redirect, render , get_object_or_404
@@ -18,6 +19,7 @@ from rest_framework.permissions import (
 )
 from django.contrib import messages
 from django.contrib.auth import login
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     Product,
@@ -683,38 +685,28 @@ def report_review(request, pk):
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 def register_view(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        
-
-        if User.objects.filter(username=username).exists():
-            messages.error(request, "اسم المستخدم موجود بالفعل")
-            return redirect('register')
-
-        user = User.objects.create_user(username=username, password=password, email=email)
-        login(request, user)
-        messages.success(request, "تم إنشاء الحساب بنجاح")
-        return redirect('home')  # أو الصفحة التي تريد الانتقال لها
-
     return render(request, 'register.html')
+
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            
+            # Generate tokens for the new user
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                "user": serializer.data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
-
-"""def login_view(request):
-    form = AuthenticationForm(data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        return redirect('/')
-    return render(request, 'login.html', {'form': form})
-
-"""
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import login
-from django.shortcuts import render, redirect
 
 def login_view(request):
     return render(request, 'login.html')
@@ -771,12 +763,7 @@ def clear_notifications(request):
     Notification.objects.filter(user=request.user).delete()
     return redirect('notifications')  # توجه إلى صفحة الإشعارات بعد الحذف
 
-
-from django.shortcuts import render
-from .models import Product  # تأكد أن هذا هو مسار الموديل الصحيح لديك
-
 from django.db.models import Avg, Count
-from django.shortcuts import render, get_object_or_404
 
 def home(request):
     # Get all products with annotations (average_rating and reviews_count)
@@ -812,18 +799,6 @@ def home(request):
         'unread_notifications_count': 0,  # Or fetch real unread notifications
     }
     return render(request, 'index.html', context)
-
-
-
-
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-
-@staff_member_required
-def admin_dashboard(request):
-    return render(request, 'admin_dashboard.html')
-
-
 
 @login_required
 def edit_review_view(request, review_id):
