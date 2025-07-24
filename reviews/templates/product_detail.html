@@ -94,7 +94,7 @@
           {% endfor %}
 
           <!-- 🔹 نموذج إضافة تعليق -->
-          <form method="post" action="{% url 'add-comment' review.id %}" class="add-comment-form mt-2" style="display:none;">
+          <form method="post" action="/reviews/{{ review.id }}/comment/" data-review-id="{{ review.id }}" class="add-comment-form mt-2" style="display:none;">
             {% csrf_token %}
             <div class="mb-2">
               <textarea name="text" class="form-control" rows="2" placeholder="أضف تعليقك..."></textarea>
@@ -289,6 +289,44 @@
         });
       });
     }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.add-comment-form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const reviewId = this.dataset.reviewId; // or use a data attribute
+        const text = this.querySelector('textarea[name="text"]').value;
+        const token = localStorage.getItem('access_token');
+        const csrftoken = getCookie('csrftoken');
+  
+        fetch(`/reviews/${reviewId}/comment/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': 'Bearer ' + token }),
+            ...(csrftoken && { 'X-CSRFToken': csrftoken }),
+          },
+          body: JSON.stringify({ text })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Failed to add comment');
+          return res.json();
+        })
+        .then(data => {
+          // Add the new comment to the UI
+          const commentsDiv = this.parentElement.querySelector('h6').nextElementSibling;
+          const newComment = document.createElement('div');
+          newComment.className = 'mb-1';
+          newComment.innerHTML = `<strong>${data.user.username}</strong>: ${data.text}`;
+          commentsDiv.parentNode.insertBefore(newComment, this);
+          this.querySelector('textarea[name="text"]').value = '';
+        })
+        .catch(err => {
+          alert('تعذر إضافة التعليق. تأكد من تسجيل الدخول.');
+        });
+      });
+    });
   });
 </script>
 {% endblock %}

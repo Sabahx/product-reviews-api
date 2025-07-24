@@ -655,18 +655,24 @@ def add_review(request, pk):
 
     return redirect('product-detail', pk=product.id)
 
-@login_required
-def add_comment(request, review_id):
-    review = get_object_or_404(Review, id=review_id)
-    if request.method == 'POST':
-        text = request.POST.get('text')
-        if text:
-            ReviewComment.objects.create(
-                review=review,
-                user=request.user,
-                text=text
-            )
-    return redirect('product-detail', pk=review.product.id)
+class AddCommentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, review_id):
+        text = request.data.get('text')
+        if not text:
+            return Response({'error': 'Text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        review = get_object_or_404(Review, id=review_id)
+        comment = ReviewComment.objects.create(
+            review=review,
+            user=request.user,
+            text=text
+        )
+        return Response({
+            'id': comment.id,
+            'text': comment.text,
+            'user': {'username': request.user.username}
+        }, status=status.HTTP_201_CREATED)
 
 @login_required
 def report_review(request, pk):
