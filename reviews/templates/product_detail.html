@@ -89,6 +89,7 @@
           <h6>💬 التعليقات:</h6>
           {% for comment in review.comments.all %}
             <div class="mb-1"><strong>{{ comment.user.username }}</strong>: {{ comment.text }}</div>
+            <div class="text-muted small">تم النشر منذ {{ comment.created_at }}</div>
           {% empty %}
             <p class="text-muted">لا توجد تعليقات.</p>
           {% endfor %}
