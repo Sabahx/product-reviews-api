@@ -1,5 +1,6 @@
 from datetime import timedelta
 import csv
+import json
 import openpyxl
 from io import BytesIO
 from django.shortcuts import redirect, render , get_object_or_404
@@ -18,6 +19,7 @@ from rest_framework.permissions import (
 )
 from django.contrib import messages
 from django.contrib.auth import login
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
     Product,
@@ -45,14 +47,30 @@ from .permissions import IsOwnerOrReadOnly
 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-authentication_classes = [JWTAuthentication]
-
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     authentication_classes = [JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     lookup_field = 'pk'
+    
+    # ✅ Explicitly override create method to ensure authentication
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure authentication is properly applied"""
+        print(f"🔍 CREATE method called")
+        print(f"🔍 User: {request.user}")
+        print(f"🔍 Is authenticated: {request.user.is_authenticated}")
+        print(f"🔍 Auth header: {request.META.get('HTTP_AUTHORIZATION', 'No auth header')}")
+        
+        if not request.user.is_authenticated:
+            return Response({"detail": "Authentication credentials were not provided."}, 
+                          status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -154,15 +172,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if top:
             return Response(self.get_serializer(top).data)
         return Response({"message": "لا توجد مراجعات بعد"}, status=status.HTTP_404_NOT_FOUND)
-##⬆
-    #mjd task9⬇
-    #عداد
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.views = models.F('views') + 1  # زيادة بدون تعارض مع السباق (race condition)
-        instance.save(update_fields=["views"])
-        instance.refresh_from_db()
-        return super().retrieve(request, *args, **kwargs)
     
     #لارسال ابلاغ
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
@@ -177,10 +186,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             return Response({"error": "تم الإبلاغ مسبقًا"}, status=400)
     
         return Response({"message": "تم الإبلاغ عن المراجعة بنجاح"})
-
-    #⬆
-
-
 
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAdminUser])
     def approve(self, request, pk=None):
@@ -202,28 +207,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 serializer.save(review=review, user=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    @action(detail=True, methods=['post'])
-    def vote(self, request, pk=None):
-        review = self.get_object()
-        user = request.user
-        helpful = request.data.get('helpful', None)
-        
-        if helpful is None:
-            return Response({'error': 'Helpful field is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        vote, created = ReviewVote.objects.get_or_create(
-            review=review,
-            user=user,
-            defaults={'helpful': helpful}
-        )
-        
-        if not created:
-            vote.helpful = helpful
-            vote.save()
-        
-        serializer = ReviewVoteSerializer(vote)
-        return Response(serializer.data)
 
     # Laith: Added action to filter reviews with banned words (admin only)
     @action(detail=False, methods=['get'], permission_classes=[IsAdminUser])
@@ -258,10 +241,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(reviews, many=True)
         return Response(serializer.data)
-
-
-
-
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -706,38 +685,28 @@ def report_review(request, pk):
     return HttpResponseRedirect(request.META.get('HTTP_REFERER'))
 
 def register_view(request):
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        
-
-        if User.objects.filter(username=username).exists():
-            messages.error(request, "اسم المستخدم موجود بالفعل")
-            return redirect('register')
-
-        user = User.objects.create_user(username=username, password=password, email=email)
-        login(request, user)
-        messages.success(request, "تم إنشاء الحساب بنجاح")
-        return redirect('home')  # أو الصفحة التي تريد الانتقال لها
-
     return render(request, 'register.html')
+
+class RegisterView(APIView):
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            
+            # Generate tokens for the new user
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                "user": serializer.data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
-
-"""def login_view(request):
-    form = AuthenticationForm(data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        return redirect('/')
-    return render(request, 'login.html', {'form': form})
-
-"""
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import login
-from django.shortcuts import render, redirect
 
 def login_view(request):
     return render(request, 'login.html')
@@ -794,12 +763,7 @@ def clear_notifications(request):
     Notification.objects.filter(user=request.user).delete()
     return redirect('notifications')  # توجه إلى صفحة الإشعارات بعد الحذف
 
-
-from django.shortcuts import render
-from .models import Product  # تأكد أن هذا هو مسار الموديل الصحيح لديك
-
 from django.db.models import Avg, Count
-from django.shortcuts import render, get_object_or_404
 
 def home(request):
     # Get all products with annotations (average_rating and reviews_count)
@@ -836,18 +800,6 @@ def home(request):
     }
     return render(request, 'index.html', context)
 
-
-
-
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render
-
-@staff_member_required
-def admin_dashboard(request):
-    return render(request, 'admin_dashboard.html')
-
-
-
 @login_required
 def edit_review_view(request, review_id):
     review = get_object_or_404(Review, id=review_id, user=request.user)
@@ -876,3 +828,19 @@ def delete_review(request, review_id):
         messages.success(request, 'تم حذف المراجعة بنجاح.')
         return redirect('user_profile')
     return redirect('user_profile')
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_me_view(request):
+    user = request.user
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        'is_staff': user.is_staff,  # Make sure this is included
+        'is_superuser': user.is_superuser
+    })

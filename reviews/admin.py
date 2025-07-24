@@ -70,7 +70,7 @@ class ReviewAdmin(admin.ModelAdmin):
     
     # Custom method to display likes count in admin
     def likes_count_display(self, obj):
-        return obj.likes_count()
+        return obj.likes
     likes_count_display.short_description = 'Likes Count'
 
     # Custom method to check for offensive content

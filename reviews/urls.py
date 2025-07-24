@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import  delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review
+from .views import  delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review, user_me_view
 from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
@@ -16,7 +16,7 @@ urlpatterns = [
     path('api/', include(router.urls)),  # ← API URLs فقط
     
     # Auth/Register
-    #path('register/', RegisterView.as_view(), name='register'),
+    # path('api/register/', RegisterView.as_view(), name='register'),
 
     # Frontend views
     path('',views.home ,name="home"),
@@ -35,8 +35,11 @@ urlpatterns = [
     path('reviews/<int:pk>/approve_review/', ReviewApproveView.as_view(), name='approve-review'),
     path('admin/banned-word-reviews/', BannedWordsReviewsView.as_view(), name='banned-word-reviews'),
     #####
-    path('register/', register_view, name='register'),  # هذا يعرض HTML عند GET
+    path('register/', register_view, name='register'),
+    path('api/register/',  RegisterView.as_view(), name='api-register'),
+    
     path('profile/', views.user_profile, name='user_profile'),
+    path('api/me/', user_me_view, name='user-me'),
     
     #path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('login/', login_view, name='login'),
@@ -46,7 +49,6 @@ urlpatterns = [
     path('notifications/mark_all_read/', views.mark_all_read, name='mark_all_read'),
     path('notifications/clear/', views.clear_notifications, name='clear_notifications'),
     path('', views.home, name='home'),  # الصفحة الرئيسية تعرض index.html
-    path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('reviews/<int:review_id>/comment/', views.add_comment, name='add-comment'),
     path('product/<int:product_id>/', product_detail_view, name='product_detail'),
     path('reviews/<int:review_id>/edit/', edit_review_view, name='edit_review'),

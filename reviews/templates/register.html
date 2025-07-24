@@ -1,28 +1,87 @@
 {% extends "home.html" %}
-{% block title %}إنشاء حساب{% endblock %}
-{% load static %}
+{% block title %}تسجيل حساب جديد{% endblock %}
+
 {% block content %}
+  <h2>تسجيل حساب جديد</h2>
 
-  <title>تسجيل مستخدم جديد</title>
- 
-  
-  <div class="container">
-    <h2 style="text-align:center">تسجيل حساب جديد</h2>
-    <form method="post" action="{% url 'register' %}">
-     {% csrf_token %}
-        <label for="username">اسم المستخدم:</label>
-        <input type="text" id="username" name="username" required>
+  <form id="jwt-register-form">
+    <div class="mb-3">
+      <label for="username">اسم المستخدم</label>
+      <input type="text" id="username" name="username" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="email">البريد الإلكتروني</label>
+      <input type="email" id="email" name="email" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="password">كلمة المرور</label>
+      <input type="password" id="password" name="password" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label for="password2">تأكيد كلمة المرور</label>
+      <input type="password" id="password2" name="password2" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary">تسجيل</button>
+  </form>
 
-        <label for="email">البريد الإلكتروني:</label>
-        <input type="email" id="email" name="email" required>
+  <div id="register-error" class="text-danger mt-3" style="display: none;"></div>
+  <div id="register-success" class="text-success mt-3" style="display: none;">✅ تم التسجيل بنجاح! يتم الآن توجيهك إلى صفحة الدخول...</div>
 
-        <label for="password">كلمة المرور:</label>
-        <input type="password" id="password" name="password" required>    
+  <script>
+    document.getElementById("jwt-register-form").addEventListener("submit", function(e) {
+      e.preventDefault();
 
-      <button type="submit">تسجيل</button>
-    </form>
-    <div id="response"></div>
-  </div>
+      const username = document.getElementById("username").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const password2 = document.getElementById("password2").value;
 
+      // Clear previous errors
+      document.getElementById("register-error").style.display = "none";
+      
+      // Simple password match validation
+      if (password !== password2) {
+        document.getElementById("register-error").textContent = "⚠️ كلمة المرور غير متطابقة";
+        document.getElementById("register-error").style.display = "block";
+        return;
+      }
 
+      fetch("/api/register/", {  // Make sure this matches your registration endpoint
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, email, password })
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { throw err; });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Registration success:", data);
+        document.getElementById("register-success").style.display = "block";
+        // Redirect to login after successful registration
+        setTimeout(() => {
+          window.location.href = "/login";  // Change this to your login page URL
+        }, 1500);
+      })
+      .catch(error => {
+        console.error("Registration error:", error);
+        let errorMessage = "⚠️ حدث خطأ أثناء التسجيل";
+        if (error.username) {
+          errorMessage = `اسم المستخدم: ${error.username[0]}`;
+        } else if (error.email) {
+          errorMessage = `البريد الإلكتروني: ${error.email[0]}`;
+        } else if (error.password) {
+          errorMessage = `كلمة المرور: ${error.password[0]}`;
+        } else if (error.detail) {
+          errorMessage = error.detail;
+        }
+        document.getElementById("register-error").textContent = errorMessage;
+        document.getElementById("register-error").style.display = "block";
+      });
+    });
+  </script>
 {% endblock %}
