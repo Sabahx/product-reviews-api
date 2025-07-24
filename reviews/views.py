@@ -866,4 +866,6 @@ def user_me_view(request):
         "id": user.id,
         "username": user.username,
         "email": user.email,
+        'is_staff': user.is_staff,  # Make sure this is included
+        'is_superuser': user.is_superuser
     })

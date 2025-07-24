@@ -92,48 +92,66 @@
 
 <!-- ✅ JWT Navbar Control -->
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded - checking auth status'); // Debug 1
+    
     const isLoggedIn = !!localStorage.getItem('access_token');
+    console.log('Is logged in:', isLoggedIn); // Debug 2
 
     if (isLoggedIn) {
-      document.getElementById('logged-in-nav').style.display = 'inline';
-      document.getElementById('guest-nav').style.display = 'none';
-      document.getElementById('profile-link').style.display = 'block';
+        console.log('User is logged in - showing user UI'); // Debug 3
+        document.getElementById('logged-in-nav').style.display = 'inline';
+        document.getElementById('guest-nav').style.display = 'none';
+        document.getElementById('profile-link').style.display = 'block';
 
-      // Optional: Fetch user data or notification count here
-      // Example:
-      fetch('/api/me/', {
-        headers: {
-          'Authorization': 'Bearer ' + localStorage.getItem('access_token')
-        }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.username) {
-          document.querySelector('.navbar-text').textContent = 'مرحباً، ' + data.username;
-        }
-        if (data.is_staff) {
-          document.getElementById('admin-link').style.display = 'block';
-        }
-        if (data.unread_notifications > 0) {
-          const notifCount = document.getElementById('notif-count');
-          notifCount.textContent = data.unread_notifications;
-          notifCount.style.display = 'inline-block';
-        }
-      });
+        // Fetch user data
+        fetch('/api/me/', {
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            }
+        })
+        .then(res => {
+            console.log('API response status:', res.status); // Debug 4
+            if (!res.ok) throw new Error('Failed to fetch user data');
+            return res.json();
+        })
+        .then(data => {
+            console.log('Received user data:', data); // Debug 5
+            
+            // Check if admin link element exists
+            const adminLink = document.getElementById('admin-link');
+            console.log('Admin link element:', adminLink); // Debug 6
+            
+            if (data.is_staff) {
+                console.log('User is staff - showing admin link'); // Debug 7
+                if (adminLink) {
+                    adminLink.style.display = 'block';
+                    console.log('Admin link should now be visible'); // Debug 8
+                } else {
+                    console.error('Admin link element not found in DOM!'); // Debug 9
+                }
+            } else {
+                console.log('User is not staff'); // Debug 10
+                if (adminLink) adminLink.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching user data:', error); // Debug 11
+        });
 
     } else {
-      document.getElementById('guest-nav').style.display = 'inline';
-      document.getElementById('logged-in-nav').style.display = 'none';
+        console.log('User is not logged in - showing guest UI'); // Debug 12
+        document.getElementById('guest-nav').style.display = 'inline';
+        document.getElementById('logged-in-nav').style.display = 'none';
     }
 
-    document.getElementById('logout-link')?.addEventListener('click', function (e) {
-      e.preventDefault();
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      window.location.href = '/login/';
+    // Logout handler
+    document.getElementById('logout-link')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        localStorage.removeItem('access_token');
+        window.location.href = '/login/';
     });
-  });
+});
 </script>
 
 </body>
