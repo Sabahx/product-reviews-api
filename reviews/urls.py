@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import  delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review
+from .views import  delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review, user_me_view
 from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
@@ -37,6 +37,7 @@ urlpatterns = [
     #####
     path('register/', register_view, name='register'),  # هذا يعرض HTML عند GET
     path('profile/', views.user_profile, name='user_profile'),
+    path('api/me/', user_me_view, name='user-me'),
     
     #path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),
     path('login/', login_view, name='login'),

@@ -21,28 +21,32 @@
   <hr>
 
   <!-- 🔹 نموذج إضافة مراجعة -->
-  <div id="review-form-container" style="display: none;">
-    <h5>📝 أضف مراجعة</h5>
-    <form id="add-review-form" class="mb-4">
-      {% csrf_token %}
-      <div class="mb-2">
-        <label>التقييم:</label>
-        <select name="rating" class="form-select">
-          {% for i in "12345" %}
-            <option value="{{ i }}">{{ i }} ⭐</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="mb-2">
-        <label>نص المراجعة:</label>
-        <textarea name="review_text" class="form-control" rows="3"></textarea>
-      </div>
-      <button type="submit" class="btn btn-success">إرسال المراجعة</button>
-    </form>
-  </div>
-  <p id="login-prompt" class="text-muted"><a href="/login/">سجل الدخول</a> لكتابة مراجعة.</p>
+<div id="review-form-container" style="display: none;">
+  <h5>📝 أضف مراجعة</h5>
+  <form id="add-review-form" class="mb-4" data-product-id="{{ product.id }}">
+    {% csrf_token %}
+    <div class="mb-2">
+      <label>التقييم:</label>
+      <select name="rating" class="form-select">
+        {% for i in "12345" %}
+          <option value="{{ i }}">{{ i }} ⭐</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-2">
+      <label>نص المراجعة:</label>
+      <textarea name="review_text" class="form-control" rows="3"></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">إرسال المراجعة</button>
+  </form>
+</div>
 
-  <hr>
+<p id="login-prompt" class="text-muted">
+  <a href="/login/">سجل الدخول</a> لكتابة مراجعة.
+</p>
+
+<hr>
+
 
   <!-- 🔹 قائمة المراجعات -->
   <h4>المراجعات:</h4>
@@ -232,32 +236,40 @@
     });
   }
 
-  // Handle adding review via AJAX
+  // handle review addition
   document.addEventListener('DOMContentLoaded', () => {
     const reviewForm = document.getElementById('add-review-form');
+    
     if (reviewForm) {
       reviewForm.addEventListener('submit', function (e) {
         e.preventDefault();
+
         const form = e.target;
+        const productId = form.dataset.productId;
+
         const data = {
+          product: productId,
           rating: form.rating.value,
           review_text: form.review_text.value
         };
 
         const headers = {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         };
 
+        // ✅ Attach JWT token
+        // Add authentication header based on your auth system
         const token = localStorage.getItem('access_token');
         if (token) {
           headers['Authorization'] = 'Bearer ' + token;
         }
 
+        // Add CSRF token if needed
         if (csrftoken) {
           headers['X-CSRFToken'] = csrftoken;
         }
 
-        fetch(`/api/reviews/{{ product.id }}/add/`, {
+        fetch('/api/reviews/', {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(data)
@@ -266,12 +278,14 @@
           if (res.ok) {
             location.reload();
           } else {
-            throw new Error('Failed to add review');
+            return res.json().then(err => {
+              throw new Error(err.detail || 'حدث خطأ أثناء الإرسال');
+            });
           }
         })
         .catch(error => {
-          console.error('Error:', error);
-          alert("⚠️ حدث خطأ أثناء إضافة المراجعة.");
+          console.error('❌ Error submitting review:', error);
+          alert("⚠️ لم يتم إرسال المراجعة. تأكد من تسجيل الدخول وأن كل الحقول مكتملة.");
         });
       });
     }

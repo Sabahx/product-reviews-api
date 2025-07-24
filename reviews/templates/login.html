@@ -39,11 +39,16 @@
         return response.json();
       })
       .then(data => {
+        console.log("Token response:", data);
+        console.log(localStorage.getItem('access_token'));
         localStorage.setItem("access_token", data.access);
-        localStorage.setItem("refresh_token", data.refresh);
-        window.location.href = "/";  // ✅ redirect after login
+        localStorage.setItem("refresh_token", data.refresh); 
+        setTimeout(() => {
+            window.location.href = "/";
+          }, 100);
       })
       .catch(error => {
+        console.error("❌ Catch block hit:", error); 
         document.getElementById("login-error").style.display = "block";
       });
     });
