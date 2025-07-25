@@ -75,6 +75,34 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    
+    def update(self, request, *args, **kwargs):
+        """Custom PUT handler to update a review if the user is the owner"""
+        print("🔧 UPDATE method called")
+        print(f"🔐 Authenticated User: {request.user}")
+
+        try:
+            instance = self.get_object()
+        except Exception as e:
+            return Response({"detail": "المراجعة غير موجودة"}, status=status.HTTP_404_NOT_FOUND)
+
+        if instance.user != request.user:
+            return Response({"detail": "لا تملك صلاحية تعديل هذه المراجعة"}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data
+
+        # Only allow updating rating and review_text
+        serializer = self.get_serializer(instance, data={
+            "rating": data.get("rating"),
+            "review_text": data.get("review_text")
+        }, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def get_queryset(self):
         
         if self.action in ['update', 'partial_update', 'destroy', 'retrieve']:
@@ -870,20 +898,7 @@ def home(request):
 
 @login_required
 def edit_review_view(request, review_id):
-    review = get_object_or_404(Review, id=review_id, user=request.user)
-
-    if request.method == 'POST':
-        rating = request.POST.get('rating')
-        review_text = request.POST.get('review_text')
-
-        review.rating = rating
-        review.review_text = review_text
-        review.save()
-
-        messages.success(request, 'تم تحديث المراجعة بنجاح.')
-        return redirect('user_profile')
-
-    return render(request, 'edit_review.html', {'review': review})
+    return render(request, 'edit_review.html')
 
 
 
