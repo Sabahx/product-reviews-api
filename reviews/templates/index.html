@@ -7,23 +7,24 @@
   <h2 class="mb-4">قائمة المنتجات</h2>
 
   <!-- ✅ شريط البحث والتصفية -->
-  <form method="get" class="row mb-4">
-    <div class="col-md-6 mb-2">
-      <input type="text" id="searchInput" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="ابحث عن منتج...">
-    </div>
-    <div class="col-md-4 mb-2">
-      <select id="sortSelect" name="sort" class="form-select">
-        <option value="">ترتيب حسب</option>
-        <option value="price_asc" {% if request.GET.sort == 'price_asc' %}selected{% endif %}>السعر: تصاعدي</option>
-        <option value="price_desc" {% if request.GET.sort == 'price_desc' %}selected{% endif %}>السعر: تنازلي</option>
-        <option value="rating" {% if request.GET.sort == 'rating' %}selected{% endif %}>الأعلى تقييماً</option>
-        <option value="reviews" {% if request.GET.sort == 'reviews' %}selected{% endif %}>الأكثر مراجعات</option>
-      </select>
-    </div>
-    <div class="col-md-2 mb-2">
-      <button type="submit" class="btn btn-primary w-100">تصفية</button>
-    </div>
-  </form>
+<form method="get" class="row mb-4">
+  <div class="col-md-6 mb-2">
+    <input type="text" name="search" value="{{ request.GET.search }}" class="form-control" placeholder="ابحث عن منتج...">
+  </div>
+  <div class="col-md-4 mb-2">
+    <select name="sort" class="form-select">
+      <option value="">ترتيب حسب</option>
+      <option value="price_asc" {% if request.GET.sort == 'price_asc' %}selected{% endif %}>السعر: تصاعدي</option>
+      <option value="price_desc" {% if request.GET.sort == 'price_desc' %}selected{% endif %}>السعر: تنازلي</option>
+      <option value="rating" {% if request.GET.sort == 'rating' %}selected{% endif %}>الأعلى تقييماً</option>
+      <option value="reviews" {% if request.GET.sort == 'reviews' %}selected{% endif %}>الأكثر مراجعات</option>
+    </select>
+  </div>
+  <div class="col-md-2 mb-2">
+    <button type="submit" class="btn btn-primary w-100">تصفية</button>
+  </div>
+</form>
+
 
   <!-- ✅ حاوية عرض المنتجات -->
   <div id="productsContainer" class="row g-4">
@@ -52,19 +53,14 @@
 
 </div>
 
-<!-- ✅ سكربت فلترة وترتيب المنتجات -->
+<!-- ✅ سكربت فلترة بسيط -->
 <script>
   const searchInput = document.getElementById('searchInput');
   const sortSelect = document.getElementById('sortSelect');
   const productItems = document.querySelectorAll('.product-item');
 
-  if (searchInput) {
-    searchInput.addEventListener('input', filterProducts);
-  }
-
-  if (sortSelect) {
-    sortSelect.addEventListener('change', sortProducts);
-  }
+  searchInput.addEventListener('input', filterProducts);
+  sortSelect.addEventListener('change', sortProducts);
 
   function filterProducts() {
     const searchTerm = searchInput.value.toLowerCase();

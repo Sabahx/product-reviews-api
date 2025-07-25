@@ -44,7 +44,7 @@ class Review(models.Model):
     review_text = models.TextField()  # نص المراجعة
     created_at = models.DateTimeField(auto_now_add=True)  # وقت الكتابة
     visible = models.BooleanField(default=False)  # هل المراجعة ظاهرة للمستخدمين أم لا (تحتاج موافقة مثلًا)
-    #comments = models.ForeignKey('ReviewComment', related_name='comments', on_delete=models.CASCADE)
+    
     # mjd task9⬇
     views = models.PositiveIntegerField(default=0)  # عدد مرات المشاهدة للمراجعة
     #⬆
@@ -56,8 +56,23 @@ class Review(models.Model):
     banned_words_found = models.TextField(blank=True, null=True)  # عرض الكلمات المحظورة التي وُجدت
     sentiment_score = models.FloatField(blank=True, null=True)  # قيمة تحليل العاطفة العددي (polarity)
 
+    # New fields for helpful/unhelpful voting
+    helpful_users = models.ManyToManyField(
+        User, 
+        related_name='helpful_reviews', 
+        blank=True,
+        help_text="المستخدمون الذين وجدوا هذه المراجعة مفيدة"
+    )
+    unhelpful_users = models.ManyToManyField(
+        User, 
+        related_name='unhelpful_reviews', 
+        blank=True,
+        help_text="المستخدمون الذين وجدوا هذه المراجعة غير مفيدة"
+    )
+
     def save(self, *args, **kwargs):
         # تحليل عاطفي تلقائي باستخدام TextBlob
+        from textblob import TextBlob
         analysis = TextBlob(self.review_text)
         polarity = analysis.sentiment.polarity
         self.sentiment_score = polarity
@@ -86,13 +101,61 @@ class Review(models.Model):
 
         super().save(*args, **kwargs)
 
-    # ✅ عدد التفاعلات المفيدة للمراجعة (helpful=True)
+    # ✅ عدد التفاعلات المفيدة للمراجعة (helpful=True) - الطريقة القديمة
     def likes_count(self):
         return self.interactions.filter(helpful=True).count()
 
-    def __str__(self):
-        return f"{self.user.username} - {self.product.name} - {self.rating}"
+    # ✅ Properties للحصول على عدد الأصوات المفيدة وغير المفيدة - الطريقة الجديدة
+    @property
+    def helpful_count(self):
+        """عدد المستخدمين الذين وجدوا المراجعة مفيدة"""
+        return self.helpful_users.count()
+    
+    @property
+    def unhelpful_count(self):
+        """عدد المستخدمين الذين وجدوا المراجعة غير مفيدة"""
+        return self.unhelpful_users.count()
 
+    # ✅ Method للتحقق من تصويت مستخدم معين
+    def user_voted_helpful(self, user):
+        """التحقق من أن المستخدم صوت بـ مفيد"""
+        if user.is_authenticated:
+            return self.helpful_users.filter(id=user.id).exists()
+        return False
+
+    def user_voted_unhelpful(self, user):
+        """التحقق من أن المستخدم صوت بـ غير مفيد"""
+        if user.is_authenticated:
+            return self.unhelpful_users.filter(id=user.id).exists()
+        return False
+
+    # ✅ Method لحساب نسبة الفائدة
+    @property
+    def helpfulness_ratio(self):
+        """نسبة الفائدة (مفيد / إجمالي الأصوات)"""
+        total_votes = self.helpful_count + self.unhelpful_count
+        if total_votes == 0:
+            return 0
+        return (self.helpful_count / total_votes) * 100
+
+    # ✅ Method للحصول على التقييم النجمي كنص
+    @property
+    def rating_stars(self):
+        """إرجاع التقييم كنجوم"""
+        return '⭐' * self.rating + '☆' * (5 - self.rating)
+
+    class Meta:
+        ordering = ['-created_at']  # ترتيب افتراضي بالأحدث أولاً
+        indexes = [
+            models.Index(fields=['product', '-created_at']),  # فهرسة للبحث السريع
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['rating']),
+            models.Index(fields=['visible']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.product.name} - {self.rating}⭐"
+    
 # ✅ نموذج للتعليق على مراجعة معينة
 class ReviewComment(models.Model):
     review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='comments')  # المراجعة الهدف
@@ -135,14 +198,44 @@ class ReviewInteraction(models.Model):
 
 # ✅ إشعارات للمستخدمين (مثلاً: أحدهم علّق على مراجعتك، أو أعجب بها)
 class Notification(models.Model):
-    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)  # المستخدم المستهدف بالإشعار
-    message = models.TextField()  # نص الإشعار
-    read = models.BooleanField(default=False)  # هل قرأ الإشعار؟
+    NOTIFICATION_TYPES = [
+        ('comment', 'تعليق جديد'),
+        ('like', 'إعجاب'),
+        ('reply', 'رد على تعليق'),
+        ('follow', 'متابعة جديدة'),
+        ('system', 'إشعار من النظام'),
+    ]
+    
+    user = models.ForeignKey(User, related_name='notifications', on_delete=models.CASCADE)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='system')
+    read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    related_review = models.ForeignKey(Review, null=True, blank=True, on_delete=models.SET_NULL)  # إن كان متعلقًا بمراجعة
-
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    # Generic relations for flexibility
+    related_review = models.ForeignKey('Review', null=True, blank=True, on_delete=models.SET_NULL)
+    related_user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='triggered_notifications')
+    
+    # URL to redirect when notification is clicked
+    action_url = models.URLField(max_length=500, null=True, blank=True)
+    
     class Meta:
-        ordering = ['-created_at']  # الترتيب من الأحدث إلى الأقدم
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'read', '-created_at']),
+        ]
+    
+    def mark_as_read(self):
+        """Mark notification as read with timestamp."""
+        if not self.read:
+            self.read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['read', 'read_at'])
+    
+    def __str__(self):
+        return f"إشعار لـ {self.user.username}: {self.message[:50]}..."
+
 
 # mjd task9⬇
 # ✅ نظام التبليغ عن المراجعات (مثلاً إذا كانت مسيئة أو تحتوي محتوى غير مناسب)
