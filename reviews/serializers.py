@@ -27,7 +27,7 @@ class ProductSerializer(serializers.ModelSerializer):
 # ✅ سيريالايزر لعرض تفاصيل المراجعة مع معلومات إضافية عنها (عدد الإعجابات، هل المستخدِم تفاعل، الخ...)
 class ReviewSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)  # عرض اسم المستخدم بدلاً من ID
-    views = serializers.IntegerField(read_only=True)
+    views = serializers.SerializerMethodField()
 
     # حقول محسوبة إضافية
     likes = serializers.SerializerMethodField()
@@ -35,23 +35,24 @@ class ReviewSerializer(serializers.ModelSerializer):
     has_report = serializers.SerializerMethodField()
     user_interacted = serializers.SerializerMethodField()
     user_voted = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
         fields = [
             'id', 'product', 'user', 'rating', 'review_text',
             'created_at', 'visible', 'likes', 'dislikes', 'views',
-            'has_report', 'user_interacted','user_voted'
+            'has_report', 'user_interacted','user_voted', 'comments_count'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'visible']
 
     # task 9 section 5 (sabah)
 
     def get_likes(self, obj):
-        return obj.interactions.filter(helpful=True).count()  # عدد التفاعلات المفيدة
+        return obj.likes  # عدد التفاعلات المفيدة
 
     def get_dislikes(self, obj):
-        return obj.interactions.filter(helpful=False).count()  # عدد التفاعلات غير المفيدة
+        return obj.dislikes  # عدد التفاعلات غير المفيدة
 
     def get_has_report(self, obj):
         user = self.context['request'].user
@@ -72,6 +73,13 @@ class ReviewSerializer(serializers.ModelSerializer):
             if vote:
                 return "helpful" if vote.helpful else "not_helpful"
         return None
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+    
+    def get_views(self, obj):
+        return obj.views.count()  # Adjust based on your actual model logic
+
 
 # ✅ سيريالايزر لتسجيل مستخدم جديد
 class RegisterSerializer(ModelSerializer):

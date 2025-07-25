@@ -75,6 +75,34 @@ class ReviewViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    
+    def update(self, request, *args, **kwargs):
+        """Custom PUT handler to update a review if the user is the owner"""
+        print("🔧 UPDATE method called")
+        print(f"🔐 Authenticated User: {request.user}")
+
+        try:
+            instance = self.get_object()
+        except Exception as e:
+            return Response({"detail": "المراجعة غير موجودة"}, status=status.HTTP_404_NOT_FOUND)
+
+        if instance.user != request.user:
+            return Response({"detail": "لا تملك صلاحية تعديل هذه المراجعة"}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data
+
+        # Only allow updating rating and review_text
+        serializer = self.get_serializer(instance, data={
+            "rating": data.get("rating"),
+            "review_text": data.get("review_text")
+        }, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def get_queryset(self):
         
         if self.action in ['update', 'partial_update', 'destroy', 'retrieve']:
@@ -655,18 +683,24 @@ def add_review(request, pk):
 
     return redirect('product-detail', pk=product.id)
 
-@login_required
-def add_comment(request, review_id):
-    review = get_object_or_404(Review, id=review_id)
-    if request.method == 'POST':
-        text = request.POST.get('text')
-        if text:
-            ReviewComment.objects.create(
-                review=review,
-                user=request.user,
-                text=text
-            )
-    return redirect('product-detail', pk=review.product.id)
+class AddCommentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, review_id):
+        text = request.data.get('text')
+        if not text:
+            return Response({'error': 'Text is required'}, status=status.HTTP_400_BAD_REQUEST)
+        review = get_object_or_404(Review, id=review_id)
+        comment = ReviewComment.objects.create(
+            review=review,
+            user=request.user,
+            text=text
+        )
+        return Response({
+            'id': comment.id,
+            'text': comment.text,
+            'user': {'username': request.user.username}
+        }, status=status.HTTP_201_CREATED)
 
 @login_required
 def report_review(request, pk):
@@ -711,37 +745,99 @@ class RegisterView(generics.CreateAPIView):
 def login_view(request):
     return render(request, 'login.html')
 
+def user_profile_page(request):
+    return render(request, 'user_profile.html')
 
-@login_required
-def user_profile(request):
-    user = request.user
+class UserProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    # مراجعات المستخدم
-    user_reviews = Review.objects.filter(user=user)
-    user_reviews_count = user_reviews.count()
+    def get(self, request):
+        user = request.user
 
-    # عدد الإعجابات التي استلمها المستخدم في مراجعاته
-    user_likes_received = ReviewInteraction.objects.filter(
-        review__user=user, helpful=True
-    ).count()
+        # User's reviews
+        user_reviews = Review.objects.filter(user=user)
+        user_reviews_count = user_reviews.count()
 
-    # عدد التعليقات التي كتبها المستخدم
-    user_comments_count = ReviewComment.objects.filter(user=user).count()
+        # Likes received on user's reviews
+        user_likes_received = ReviewInteraction.objects.filter(
+            review__user=user, helpful=True
+        ).count()
 
-    # المراجعات التي أعجبت المستخدم
-    liked_reviews = ReviewInteraction.objects.filter(
-        user=user, helpful=True
-    ).select_related('review', 'review__product', 'review__user')
+        # Comments written by user
+        user_comments_count = ReviewComment.objects.filter(user=user).count()
 
-    context = {
-        'user_reviews': user_reviews,
-        'user_reviews_count': user_reviews_count,
-        'user_likes_received': user_likes_received,
-        'user_comments_count': user_comments_count,
-        'liked_reviews': liked_reviews,
-    }
+        # Reviews liked by user
+        liked_reviews = ReviewInteraction.objects.filter(
+            user=user, helpful=True
+        ).select_related('review', 'review__product', 'review__user')
 
-    return render(request, 'user_profile.html', context)
+        # Prepare reviews data
+        reviews_data = [
+            {
+                "id": review.id,
+                "product_id": review.product.id,
+                "product_name": review.product.name,
+                "rating": review.rating,
+                "created_at": review.created_at.strftime("%Y-%m-%d"),
+                "visible": review.visible,
+                "review_text": review.review_text,
+                "likes_count": review.likes,
+                "comments_count": review.comments.count(),
+            }
+            for review in user_reviews
+        ]
+
+        # Prepare liked reviews data
+        liked_reviews_data = [
+            {
+                "id": interaction.review.id,
+                "product_id": interaction.review.product.id,
+                "product_name": interaction.review.product.name,
+                "user": interaction.review.user.username,
+                "rating": interaction.review.rating,
+                "created_at": interaction.review.created_at.strftime("%Y-%m-%d"),
+                "review_text": interaction.review.review_text,
+                "likes_count": interaction.review.likes,
+                "comments_count": interaction.review.comments.count(),
+            }
+            for interaction in liked_reviews
+        ]
+
+        data = {
+            "username": user.username,
+            "email": user.email,
+            "date_joined": user.date_joined.strftime("%Y-%m-%d"),
+            "reviews_count": user_reviews_count,
+            "likes_received": user_likes_received,
+            "comments_count": user_comments_count,
+            "reviews": reviews_data,
+            "liked_reviews": liked_reviews_data,
+        }
+        return Response(data)
+
+    def put(self, request):
+        user = request.user
+        email = request.data.get("email")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+        current_password = request.data.get("current_password")
+
+        # Validate current password
+        if not user.check_password(current_password):
+            return Response({"error": "كلمة المرور الحالية غير صحيحة"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update email
+        if email:
+            user.email = email
+
+        # Update password
+        if new_password:
+            if new_password != confirm_password:
+                return Response({"error": "كلمتا المرور غير متطابقتين"}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+
+        user.save()
+        return Response({"success": "تم تحديث البيانات بنجاح"})
 
 
 from django.contrib.auth import logout
@@ -802,20 +898,7 @@ def home(request):
 
 @login_required
 def edit_review_view(request, review_id):
-    review = get_object_or_404(Review, id=review_id, user=request.user)
-
-    if request.method == 'POST':
-        rating = request.POST.get('rating')
-        review_text = request.POST.get('review_text')
-
-        review.rating = rating
-        review.review_text = review_text
-        review.save()
-
-        messages.success(request, 'تم تحديث المراجعة بنجاح.')
-        return redirect('user_profile')
-
-    return render(request, 'edit_review.html', {'review': review})
+    return render(request, 'edit_review.html')
 
 
 
