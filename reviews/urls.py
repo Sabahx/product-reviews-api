@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import  AddCommentAPIView, delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review, user_me_view
+from .views import  AddCommentAPIView, UserProfileAPIView, delete_review, edit_review_view ,login_view ,logout_view, KeywordSearchReviewsView,notifications_page,register_view, ReviewCommentViewSet, ReviewViewSet,RegisterView, ProductViewSet, ReviewVoteViewSet ,ProductAnalyticsView, TopRatedProductsView, TopReviewersView ,ReviewApproveView, BannedWordsReviewsView, BannedWordViewSet, NotificationViewSet, add_review, product_detail_view, product_list_view, report_review, user_me_view
 from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
@@ -38,7 +38,8 @@ urlpatterns = [
     path('register/', register_view, name='register'),
     path('api/register/',  RegisterView.as_view(), name='api-register'),
     
-    path('profile/', views.user_profile, name='user_profile'),
+    path('profile/', views.user_profile_page, name='user_profile'),
+    path('api/user/profile/', UserProfileAPIView.as_view(), name='user-profile-api'),
     path('api/me/', user_me_view, name='user-me'),
     
     #path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),

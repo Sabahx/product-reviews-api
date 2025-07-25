@@ -717,37 +717,99 @@ class RegisterView(generics.CreateAPIView):
 def login_view(request):
     return render(request, 'login.html')
 
+def user_profile_page(request):
+    return render(request, 'user_profile.html')
 
-@login_required
-def user_profile(request):
-    user = request.user
+class UserProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    # مراجعات المستخدم
-    user_reviews = Review.objects.filter(user=user)
-    user_reviews_count = user_reviews.count()
+    def get(self, request):
+        user = request.user
 
-    # عدد الإعجابات التي استلمها المستخدم في مراجعاته
-    user_likes_received = ReviewInteraction.objects.filter(
-        review__user=user, helpful=True
-    ).count()
+        # User's reviews
+        user_reviews = Review.objects.filter(user=user)
+        user_reviews_count = user_reviews.count()
 
-    # عدد التعليقات التي كتبها المستخدم
-    user_comments_count = ReviewComment.objects.filter(user=user).count()
+        # Likes received on user's reviews
+        user_likes_received = ReviewInteraction.objects.filter(
+            review__user=user, helpful=True
+        ).count()
 
-    # المراجعات التي أعجبت المستخدم
-    liked_reviews = ReviewInteraction.objects.filter(
-        user=user, helpful=True
-    ).select_related('review', 'review__product', 'review__user')
+        # Comments written by user
+        user_comments_count = ReviewComment.objects.filter(user=user).count()
 
-    context = {
-        'user_reviews': user_reviews,
-        'user_reviews_count': user_reviews_count,
-        'user_likes_received': user_likes_received,
-        'user_comments_count': user_comments_count,
-        'liked_reviews': liked_reviews,
-    }
+        # Reviews liked by user
+        liked_reviews = ReviewInteraction.objects.filter(
+            user=user, helpful=True
+        ).select_related('review', 'review__product', 'review__user')
 
-    return render(request, 'user_profile.html', context)
+        # Prepare reviews data
+        reviews_data = [
+            {
+                "id": review.id,
+                "product_id": review.product.id,
+                "product_name": review.product.name,
+                "rating": review.rating,
+                "created_at": review.created_at.strftime("%Y-%m-%d"),
+                "visible": review.visible,
+                "review_text": review.review_text,
+                "likes_count": review.likes,
+                "comments_count": review.comments.count(),
+            }
+            for review in user_reviews
+        ]
+
+        # Prepare liked reviews data
+        liked_reviews_data = [
+            {
+                "id": interaction.review.id,
+                "product_id": interaction.review.product.id,
+                "product_name": interaction.review.product.name,
+                "user": interaction.review.user.username,
+                "rating": interaction.review.rating,
+                "created_at": interaction.review.created_at.strftime("%Y-%m-%d"),
+                "review_text": interaction.review.review_text,
+                "likes_count": interaction.review.likes,
+                "comments_count": interaction.review.comments.count(),
+            }
+            for interaction in liked_reviews
+        ]
+
+        data = {
+            "username": user.username,
+            "email": user.email,
+            "date_joined": user.date_joined.strftime("%Y-%m-%d"),
+            "reviews_count": user_reviews_count,
+            "likes_received": user_likes_received,
+            "comments_count": user_comments_count,
+            "reviews": reviews_data,
+            "liked_reviews": liked_reviews_data,
+        }
+        return Response(data)
+
+    def put(self, request):
+        user = request.user
+        email = request.data.get("email")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+        current_password = request.data.get("current_password")
+
+        # Validate current password
+        if not user.check_password(current_password):
+            return Response({"error": "كلمة المرور الحالية غير صحيحة"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update email
+        if email:
+            user.email = email
+
+        # Update password
+        if new_password:
+            if new_password != confirm_password:
+                return Response({"error": "كلمتا المرور غير متطابقتين"}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+
+        user.save()
+        return Response({"success": "تم تحديث البيانات بنجاح"})
 
 
 from django.contrib.auth import logout
