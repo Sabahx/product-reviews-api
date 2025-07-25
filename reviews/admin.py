@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Review, ReviewComment, BannedWord, ReviewView
+from .models import Product, Review, ReviewComment, BannedWord
 from django.db.models import Q, Count
 
 @admin.register(Product)
@@ -8,8 +8,8 @@ class ProductAdmin(admin.ModelAdmin):
     
     
 # List of offensive words to filter
-BANNED_WORDS = BannedWord.objects.all()
-
+"""BANNED_WORDS = BannedWord.objects.all()
+"""
 class OffensiveContentFilter(admin.SimpleListFilter):
     title = 'offensive content'
     parameter_name = 'offensive'
@@ -70,7 +70,7 @@ class ReviewAdmin(admin.ModelAdmin):
     
     # Custom method to display likes count in admin
     def likes_count_display(self, obj):
-        return obj.likes
+        return obj.likes_count()
     likes_count_display.short_description = 'Likes Count'
 
     # Custom method to check for offensive content
@@ -108,9 +108,3 @@ class ReviewCommentAdmin(admin.ModelAdmin):
     list_filter = ('created_at',)
     search_fields = ('text', 'user__username', 'review__product__name')
     readonly_fields = ('user', 'review', 'created_at')
-    
-@admin.register(ReviewView)
-class ReviewViewAdmin(admin.ModelAdmin):
-    list_display = ('review', 'user', 'ip_address', 'viewed_at')
-    list_filter = ('viewed_at',)
-    search_fields = ('review__title', 'user__username', 'ip_address')

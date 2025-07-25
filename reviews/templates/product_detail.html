@@ -1,5 +1,6 @@
 {% extends "home.html" %}
 {% load static %}
+{% load humanize %}  {# لإظهار الوقت بصيغة طبيعية #}
 
 {% block content %}
 <div class="container my-5">
@@ -8,326 +9,405 @@
   <!-- 🔹 تفاصيل المنتج -->
   <div class="row mb-4">
     <div class="col-md-6">
-      <img src="{% static 'images/no-image.png' %}" class="card-img-top" alt="{{ product.name }}">
+      {% if product.image %}
+        <img src="{{ product.image.url }}" class="img-fluid rounded shadow" alt="{{ product.name }}">
+      {% else %}
+        <img src="https://via.placeholder.com/400x300.png?text=No+Image" class="img-fluid rounded shadow" alt="{{ product.name }}">
+      {% endif %}
     </div>
     <div class="col-md-6">
-      <p>{{ product.description }}</p>
-      <p><strong>💰 السعر:</strong> {{ product.price }} $</p>
-      <p><strong>⭐ التقييم:</strong> {{ product.average_rating|floatformat:1 }}</p>
-      <p><strong>📝 عدد المراجعات:</strong> {{ product.reviews_count }}</p>
+      <div class="product-info">
+        <p class="lead">{{ product.description }}</p>
+        <div class="price-section mb-3">
+          <h4 class="text-success"><strong>💰 السعر:</strong> {{ product.price }} ₺</h4>
+        </div>
+        <div class="rating-section mb-3">
+          <p class="mb-1"><strong>⭐ التقييم:</strong> 
+            <span class="text-warning">
+              {% for i in "12345" %}
+                {% if i|add:0 <= product.average_rating %}
+                  ⭐
+                {% else %}
+                  ☆
+                {% endif %}
+              {% endfor %}
+            </span>
+            <span class="text-muted">({{ product.average_rating|floatformat:1 }})</span>
+          </p>
+          <p><strong>📝 عدد المراجعات:</strong> {{ product.reviews_count }}</p>
+        </div>
+        
+        <!-- زر إضافة إلى المفضلة -->
+        {% if user.is_authenticated %}
+          <form method="post" action="{% url 'toggle-favorite' product.id %}" class="d-inline">
+            {% csrf_token %}
+            {% if is_favorite %}
+              <button type="submit" class="btn btn-outline-danger">
+                ❤️ إزالة من المفضلة
+              </button>
+            {% else %}
+              <button type="submit" class="btn btn-outline-primary">
+                🤍 إضافة للمفضلة
+              </button>
+            {% endif %}
+          </form>
+        {% endif %}
+      </div>
     </div>
   </div>
 
   <hr>
 
   <!-- 🔹 نموذج إضافة مراجعة -->
-<div id="review-form-container" style="display: none;">
-  <h5>📝 أضف مراجعة</h5>
-  <form id="add-review-form" class="mb-4" data-product-id="{{ product.id }}">
-    {% csrf_token %}
-    <div class="mb-2">
-      <label>التقييم:</label>
-      <select name="rating" class="form-select">
-        {% for i in "12345" %}
-          <option value="{{ i }}">{{ i }} ⭐</option>
-        {% endfor %}
-      </select>
+  {% if user.is_authenticated %}
+    <!-- التحقق من وجود مراجعة سابقة -->
+    {% if user_has_reviewed %}
+      <div class="alert alert-info">
+        <strong>📝 لقد قمت بمراجعة هذا المنتج من قبل!</strong>
+        <a href="#your-review" class="alert-link">انتقل إلى مراجعتك</a>
+      </div>
+    {% else %}
+      <h5>📝 أضف مراجعة</h5>
+      <form method="post" action="{% url 'add-review' product.id %}" class="mb-4" id="review-form">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-md-6">
+            <div class="mb-3">
+              <label class="form-label">التقييم:</label>
+              <div class="rating-input">
+                {% for i in "12345" %}
+                  <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" required>
+                  <label for="star{{ i }}" class="star-label">⭐</label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">نص المراجعة:</label>
+          <textarea name="review_text" class="form-control" rows="4" placeholder="شاركنا تجربتك مع هذا المنتج..." required></textarea>
+          <div class="form-text">الحد الأدنى 10 أحرف</div>
+        </div>
+        <button type="submit" class="btn btn-success">إرسال المراجعة</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <div class="alert alert-warning">
+      <strong>سجل الدخول لكتابة مراجعة</strong>
+      <a href="{% url 'login' %}" class="btn btn-sm btn-primary ms-2">تسجيل الدخول</a>
     </div>
-    <div class="mb-2">
-      <label>نص المراجعة:</label>
-      <textarea name="review_text" class="form-control" rows="3"></textarea>
+  {% endif %}
+
+  <hr>
+
+  <!-- 🔹 فلتر وترتيب المراجعات -->
+  <div class="reviews-header d-flex justify-content-between align-items-center mb-3">
+    <h4>المراجعات ({{ reviews.count }})</h4>
+    <div class="review-filters">
+      <form method="get" class="d-flex gap-2">
+        <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="newest" {% if request.GET.sort == 'newest' %}selected{% endif %}>الأحدث</option>
+          <option value="oldest" {% if request.GET.sort == 'oldest' %}selected{% endif %}>الأقدم</option>
+          <option value="highest" {% if request.GET.sort == 'highest' %}selected{% endif %}>أعلى تقييم</option>
+          <option value="lowest" {% if request.GET.sort == 'lowest' %}selected{% endif %}>أقل تقييم</option>
+          <option value="helpful" {% if request.GET.sort == 'helpful' %}selected{% endif %}>الأكثر فائدة</option>
+        </select>
+        <select name="rating_filter" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">جميع التقييمات</option>
+          {% for i in "54321" %}
+            <option value="{{ i }}" {% if request.GET.rating_filter == i %}selected{% endif %}>{{ i }} نجوم</option>
+          {% endfor %}
+        </select>
+      </form>
     </div>
-    <button type="submit" class="btn btn-success">إرسال المراجعة</button>
-  </form>
-</div>
-
-<p id="login-prompt" class="text-muted">
-  <a href="/login/">سجل الدخول</a> لكتابة مراجعة.
-</p>
-
-<hr>
-
+  </div>
 
   <!-- 🔹 قائمة المراجعات -->
-  <h4>المراجعات:</h4>
   {% for review in reviews %}
-    <div class="card mb-3" data-review-id="{{ review.id }}">
+    <div class="card mb-3 review-card" {% if review.user == user %}id="your-review"{% endif %}>
       <div class="card-body">
-        <h5 class="card-title">{{ review.user.username }}</h5>
-        <p>⭐ {{ review.rating }}<br>{{ review.review_text }}</p>
-
-        <p class="view-count">
-          <i class="fas fa-eye"></i> {{ review.views.count }}
-        </p>
-        
-        <!-- 🔹 الإحصائيات -->
-        <p class="text-muted">
-          👍 مفيد: <span class="likes-count">{{ review.likes }}</span> | 👎 غير مفيد: <span class="dislikes-count">{{ review.dislikes }}</span>
-        </p>
-
-        <!-- 🔹 أزرار التفاعل -->
-        <div class="d-flex gap-2 mt-2 review-actions" style="display: none;">
-          <button class="btn btn-sm btn-outline-success review-interaction"
-                  data-helpful="true" data-review-id="{{ review.id }}">
-            👍 مفيد
-          </button>
-          <button class="btn btn-sm btn-outline-danger review-interaction"
-                  data-helpful="false" data-review-id="{{ review.id }}">
-            👎 غير مفيد
-          </button>
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="reviewer-info">
+            <h5 class="card-title mb-1">
+              {{ review.user.username }}
+              {% if review.user == user %}
+                <span class="badge bg-primary">مراجعتك</span>
+              {% endif %}
+            </h5>
+            <div class="rating-stars mb-2">
+              {% for i in "12345" %}
+                {% if i|add:0 <= review.rating %}
+                  <span class="text-warning">⭐</span>
+                {% else %}
+                  <span class="text-muted">☆</span>
+                {% endif %}
+              {% endfor %}
+              <span class="ms-2 text-muted">{{ review.rating }}/5</span>
+            </div>
+          </div>
+          <small class="text-muted">{{ review.created_at|naturaltime }}</small>
         </div>
+        
+        <p class="review-text">{{ review.review_text }}</p>
+        
+        <!-- أزرار التفاعل -->
+        <div class="review-actions d-flex gap-2 mb-3">
+          {% if user.is_authenticated and user != review.user %}
+            <!-- أزرار مفيد/غير مفيد -->
+            <form method="post" action="{% url 'review-helpful' review.id %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" name="action" value="helpful" 
+                      class="btn btn-sm btn-outline-success {% if user in review.helpful_users.all %}active{% endif %}">
+                👍 مفيد ({{ review.helpful_count }})
+              </button>
+            </form>
+            <form method="post" action="{% url 'review-helpful' review.id %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" name="action" value="unhelpful" 
+                      class="btn btn-sm btn-outline-danger {% if user in review.unhelpful_users.all %}active{% endif %}">
+                👎 غير مفيد ({{ review.unhelpful_count }})
+              </button>
+            </form>
+          {% else %}
+            <span class="text-muted">
+              👍 {{ review.helpful_count }} | 👎 {{ review.unhelpful_count }}
+            </span>
+          {% endif %}
 
-        <!-- 🔹 زر الإبلاغ -->
-        <form method="post" action="{% url 'report-review' review.id %}" class="mt-2 report-form" style="display:none;">
-          {% csrf_token %}
-          <input type="hidden" name="reason" value="محتوى غير لائق">
-          <button type="submit" class="btn btn-sm btn-outline-danger">🚩 إبلاغ</button>
-        </form>
+          <!-- زر الإبلاغ -->
+          {% if user.is_authenticated and user != review.user %}
+            <button type="button" class="btn btn-sm btn-outline-warning" 
+                    data-bs-toggle="modal" data-bs-target="#reportModal{{ review.id }}">
+              🚩 إبلاغ
+            </button>
+          {% endif %}
+        </div>
 
         <!-- 🔹 التعليقات على المراجعة -->
-        <div class="ms-3 mt-3">
-          <h6>💬 التعليقات:</h6>
-          {% for comment in review.comments.all %}
-            <div class="mb-1"><strong>{{ comment.user.username }}</strong>: {{ comment.text }}</div>
-            <div class="text-muted small">تم النشر منذ {{ comment.created_at }}</div>
-          {% empty %}
-            <p class="text-muted">لا توجد تعليقات.</p>
-          {% endfor %}
+        <div class="comments-section ms-3 mt-3" id="comments-{{ review.id }}">
+          <h6 class="text-muted">💬 التعليقات ({{ review.comments.count }}):</h6>
+          
+          <div class="comments-list">
+            {% for comment in review.comments.all %}
+              <div class="comment mb-2 p-2 bg-light rounded">
+                <div class="d-flex justify-content-between">
+                  <strong>{{ comment.user.username }}:</strong>
+                  <small class="text-muted">{{ comment.created_at|naturaltime }}</small>
+                </div>
+                <div class="comment-text">{{ comment.text }}</div>
+              </div>
+            {% empty %}
+              <p class="text-muted">لا توجد تعليقات بعد.</p>
+            {% endfor %}
+          </div>
 
-          <!-- 🔹 نموذج إضافة تعليق -->
-          <form method="post" action="/reviews/{{ review.id }}/comment/" data-review-id="{{ review.id }}" class="add-comment-form mt-2" style="display:none;">
-            {% csrf_token %}
-            <div class="mb-2">
-              <textarea name="text" class="form-control" rows="2" placeholder="أضف تعليقك..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-sm btn-outline-primary">إرسال التعليق</button>
-          </form>
+          <!-- نموذج إضافة تعليق -->
+          {% if user.is_authenticated %}
+            <form method="post" action="{% url 'add-comment' review.id %}" 
+                  class="comment-form mt-2" data-review-id="{{ review.id }}">
+              {% csrf_token %}
+              <div class="mb-2">
+                <textarea name="text" class="form-control form-control-sm" 
+                          rows="2" placeholder="أضف تعليقك..." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-sm btn-outline-primary">
+                إرسال التعليق
+              </button>
+            </form>
+          {% else %}
+            <p class="text-muted small">
+              <a href="{% url 'login' %}">سجل الدخول</a> لإضافة تعليق
+            </p>
+          {% endif %}
         </div>
-
       </div>
     </div>
+
+    <!-- Modal للإبلاغ -->
+    {% if user.is_authenticated and user != review.user %}
+      <div class="modal fade" id="reportModal{{ review.id }}" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">إبلاغ عن المراجعة</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'report-review' review.id %}">
+              <div class="modal-body">
+                {% csrf_token %}
+                <div class="mb-3">
+                  <label class="form-label">سبب الإبلاغ:</label>
+                  <select name="reason" class="form-select" required>
+                    <option value="">اختر السبب</option>
+                    <option value="spam">محتوى مزعج</option>
+                    <option value="inappropriate">محتوى غير لائق</option>
+                    <option value="fake">مراجعة مزيفة</option>
+                    <option value="offensive">محتوى مسيء</option>
+                    <option value="other">أخرى</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">تفاصيل إضافية (اختياري):</label>
+                  <textarea name="details" class="form-control" rows="3"></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="submit" class="btn btn-danger">إرسال الإبلاغ</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
   {% empty %}
-    <p>لا توجد مراجعات بعد.</p>
+    <div class="text-center py-5">
+      <div class="mb-3">
+        <i class="fas fa-comment-slash fa-3x text-muted"></i>
+      </div>
+      <h5 class="text-muted">لا توجد مراجعات بعد</h5>
+      <p class="text-muted">كن أول من يراجع هذا المنتج!</p>
+    </div>
   {% endfor %}
+
+  <!-- Pagination للمراجعات -->
+  {% if reviews.has_other_pages %}
+    <nav aria-label="صفحات المراجعات">
+      <ul class="pagination justify-content-center">
+        {% if reviews.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ reviews.previous_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.rating_filter %}&rating_filter={{ request.GET.rating_filter }}{% endif %}">السابق</a>
+          </li>
+        {% endif %}
+        
+        {% for num in reviews.paginator.page_range %}
+          {% if reviews.number == num %}
+            <li class="page-item active">
+              <span class="page-link">{{ num }}</span>
+            </li>
+          {% else %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ num }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.rating_filter %}&rating_filter={{ request.GET.rating_filter }}{% endif %}">{{ num }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+        
+        {% if reviews.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ reviews.next_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.rating_filter %}&rating_filter={{ request.GET.rating_filter }}{% endif %}">التالي</a>
+          </li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
 </div>
-{% endblock %}
 
-{% block extra_js %}
+
+<!-- JavaScript للتفاعل المحسن -->
 <script>
-  // Get CSRF token from Django
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
+document.addEventListener("DOMContentLoaded", function() {
+  // تحسين نموذج التعليقات مع AJAX
+  document.querySelectorAll('.comment-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-  const csrftoken = getCookie('csrftoken');
-
-  document.addEventListener('DOMContentLoaded', () => {
-    // Check if user is logged in (you might need to adjust this based on your auth system)
-    const isLoggedIn = checkUserAuthentication(); // Implement this function based on your auth system
-
-    if (isLoggedIn) {
-      // Show form and interaction buttons
-      document.getElementById('review-form-container').style.display = 'block';
-      document.getElementById('login-prompt').style.display = 'none';
-
-      document.querySelectorAll('.review-actions').forEach(el => el.style.display = 'flex');
-      document.querySelectorAll('.report-form').forEach(el => el.style.display = 'block');
-      document.querySelectorAll('.add-comment-form').forEach(el => el.style.display = 'block');
-
-      // Add click handlers for like/dislike buttons
-      document.querySelectorAll('.review-interaction').forEach(button => {
-        button.addEventListener('click', handleReviewInteraction);
-      });
-    }
-  });
-
-  // Function to check user authentication - adjust based on your system
-  function checkUserAuthentication() {
-    // Option 1: Check for JWT token in localStorage (if using JWT)
-    return !!localStorage.getItem('access_token');
-    
-    // Option 2: Check Django session (alternative)
-    // You can make an AJAX call to check authentication status
-    // return document.body.dataset.userAuthenticated === 'true';
-  }
-
-  function handleReviewInteraction(event) {
-    const button = event.target;
-    const reviewId = button.dataset.reviewId;
-    const isHelpful = button.dataset.helpful === 'true';
-
-    // Disable button during request
-    button.disabled = true;
-
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-
-    // Add authentication header based on your auth system
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      headers['Authorization'] = 'Bearer ' + token;
-    }
-
-    // Add CSRF token if needed
-    if (csrftoken) {
-      headers['X-CSRFToken'] = csrftoken;
-    }
-
-    fetch(`/api/reviews/${reviewId}/interact/`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({ helpful: isHelpful })
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Success:', data);
+      const reviewId = form.getAttribute('data-review-id');
+      const textarea = form.querySelector('textarea[name="text"]');
+      const commentText = textarea.value.trim();
       
-      // Update counts in the UI
-      const card = button.closest('.card');
-      const likesElement = card.querySelector('.likes-count');
-      const dislikesElement = card.querySelector('.dislikes-count');
-      
-      if (likesElement) likesElement.textContent = data.likes || 0;
-      if (dislikesElement) dislikesElement.textContent = data.dislikes || 0;
-
-      // Update button states
-      const allButtons = card.querySelectorAll('.review-interaction');
-      allButtons.forEach(btn => {
-        btn.classList.remove('active', 'btn-success', 'btn-danger');
-        if (btn.dataset.helpful === 'true') {
-          btn.classList.add('btn-outline-success');
-        } else {
-          btn.classList.add('btn-outline-danger');
-        }
-      });
-
-      // Highlight the clicked button if vote was successful
-      if (data.user_vote !== null) {
-        button.classList.remove('btn-outline-success', 'btn-outline-danger');
-        if (isHelpful) {
-          button.classList.add('btn-success', 'active');
-        } else {
-          button.classList.add('btn-danger', 'active');
-        }
+      if (!commentText) {
+        alert('يرجى كتابة تعليق');
+        return;
       }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert("⚠️ لم يتم التصويت. تأكد من تسجيل الدخول والمحاولة مرة أخرى.");
-    })
-    .finally(() => {
-      button.disabled = false;
-    });
-  }
 
-  // handle review addition
-  document.addEventListener('DOMContentLoaded', () => {
-    const reviewForm = document.getElementById('add-review-form');
-    
-    if (reviewForm) {
-      reviewForm.addEventListener('submit', function (e) {
-        e.preventDefault();
+      const csrftoken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      
+      // تعطيل الزر أثناء الإرسال
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري الإرسال...';
 
-        const form = e.target;
-        const productId = form.dataset.productId;
-
-        const data = {
-          product: productId,
-          rating: form.rating.value,
-          review_text: form.review_text.value
-        };
-
-        const headers = {
-          'Content-Type': 'application/json'
-        };
-
-        // ✅ Attach JWT token
-        // Add authentication header based on your auth system
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          headers['Authorization'] = 'Bearer ' + token;
-        }
-
-        // Add CSRF token if needed
-        if (csrftoken) {
-          headers['X-CSRFToken'] = csrftoken;
-        }
-
-        fetch('/api/reviews/', {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(data)
-        })
-        .then(res => {
-          if (res.ok) {
-            location.reload();
-          } else {
-            return res.json().then(err => {
-              throw new Error(err.detail || 'حدث خطأ أثناء الإرسال');
-            });
-          }
-        })
-        .catch(error => {
-          console.error('❌ Error submitting review:', error);
-          alert("⚠️ لم يتم إرسال المراجعة. تأكد من تسجيل الدخول وأن كل الحقول مكتملة.");
-        });
-      });
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.add-comment-form').forEach(form => {
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const reviewId = this.dataset.reviewId; // or use a data attribute
-        const text = this.querySelector('textarea[name="text"]').value;
-        const token = localStorage.getItem('access_token');
-        const csrftoken = getCookie('csrftoken');
-  
-        fetch(`/reviews/${reviewId}/comment/`, {
+      try {
+        const response = await fetch(form.action, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': 'Bearer ' + token }),
-            ...(csrftoken && { 'X-CSRFToken': csrftoken }),
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
-          body: JSON.stringify({ text })
-        })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to add comment');
-          return res.json();
-        })
-        .then(data => {
-          // Add the new comment to the UI
-          const commentsDiv = this.parentElement.querySelector('h6').nextElementSibling;
-          const newComment = document.createElement('div');
-          newComment.className = 'mb-1';
-          newComment.innerHTML = `<strong>${data.user.username}</strong>: ${data.text}`;
-          commentsDiv.parentNode.insertBefore(newComment, this);
-          this.querySelector('textarea[name="text"]').value = '';
-        })
-        .catch(err => {
-          alert('تعذر إضافة التعليق. تأكد من تسجيل الدخول.');
+          body: new URLSearchParams({ text: commentText }),
         });
+
+        if (response.ok) {
+          const commentsDiv = document.querySelector(`#comments-${reviewId} .comments-list`);
+          const newComment = document.createElement('div');
+          newComment.classList.add('comment', 'mb-2', 'p-2', 'bg-light', 'rounded');
+          newComment.innerHTML = `
+            <div class="d-flex justify-content-between">
+              <strong>أنت:</strong>
+              <small class="text-muted">الآن</small>
+            </div>
+            <div class="comment-text">${commentText}</div>
+          `;
+          
+          // إزالة رسالة "لا توجد تعليقات" إذا كانت موجودة
+          const noCommentsMsg = commentsDiv.querySelector('.text-muted');
+          if (noCommentsMsg && noCommentsMsg.textContent.includes('لا توجد تعليقات')) {
+            noCommentsMsg.remove();
+          }
+          
+          commentsDiv.appendChild(newComment);
+          textarea.value = '';
+          
+          // تحديث عداد التعليقات
+          const commentsHeader = document.querySelector(`#comments-${reviewId} h6`);
+          const currentCount = parseInt(commentsHeader.textContent.match(/\d+/)) || 0;
+          commentsHeader.textContent = `💬 التعليقات (${currentCount + 1}):`;
+          
+        } else {
+          alert('حدث خطأ أثناء إرسال التعليق.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('خطأ في الاتصال بالخادم.');
+      } finally {
+        // إعادة تفعيل الزر
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'إرسال التعليق';
+      }
+    });
+  });
+
+  // تحسين تقييم النجوم
+  const ratingInputs = document.querySelectorAll('.rating-input input[type="radio"]');
+  const starLabels = document.querySelectorAll('.star-label');
+  
+  ratingInputs.forEach((input, index) => {
+    input.addEventListener('change', function() {
+      starLabels.forEach((label, labelIndex) => {
+        if (labelIndex <= index) {
+          label.style.filter = 'sepia(1) hue-rotate(45deg) saturate(2)';
+        } else {
+          label.style.filter = 'none';
+        }
       });
     });
   });
+
+  // تأكيد الإبلاغ
+  document.querySelectorAll('form[action*="report-review"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      if (!confirm('هل أنت متأكد من رغبتك في الإبلاغ عن هذه المراجعة؟')) {
+        e.preventDefault();
+      }
+    });
+  });
+
+  // التمرير السلس للمراجعة الخاصة بالمستخدم
+  const userReview = document.getElementById('your-review');
+  if (userReview && window.location.hash === '#your-review') {
+    userReview.scrollIntoView({ behavior: 'smooth' });
+  }
+});
 </script>
 {% endblock %}

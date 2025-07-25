@@ -1,36 +1,364 @@
 {% extends 'home.html' %}
-
+{% load static %}
 {% block content %}
-<div class="container">
-    <h1>إشعاراتي</h1>
-    
-    <div class="notifications-actions">
-        <a href="{% url 'mark_all_read' %}" class="btn btn-secondary">تعليم الكل كمقروء</a>
-        <a href="{% url 'clear_notifications' %}" class="btn btn-danger">حذف الكل</a>
-    </div>
-    
-    <div class="notifications-list">
-        {% for notification in notifications %}
-        <div class="notification {% if not notification.read %}unread{% endif %}">
-            <div class="notification-content">
-                <p>{{ notification.message }}</p>
-                {% if notification.related_review %}
-                <a href="{% url 'product_detail' notification.related_review.product.id %}" class="btn btn-sm btn-link">عرض المراجعة</a>
-                {% endif %}
-            </div>
-            <div class="notification-meta">
-                <span class="date">{{ notification.created_at|timesince }} ago</span>
-                <div class="actions">
-                    {% if not notification.read %}
-                    <a href="{% url 'mark_as_read' notification.id %}" class="btn btn-sm btn-success">تعليم كمقروء</a>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
+                    <i class="fas fa-bell me-2"></i>إشعاراتي
+                    {% if unread_count > 0 %}
+                    <span class="badge bg-danger ms-2">{{ unread_count }}</span>
                     {% endif %}
-                    <a href="{% url 'delete_notification' notification.id %}" class="btn btn-sm btn-danger">حذف</a>
+                </h1>
+                
+                <div class="notifications-stats">
+                    <small class="text-muted">
+                        المجموع: {{ total_count }} | غير مقروء: {{ unread_count }}
+                    </small>
                 </div>
             </div>
+
+            <!-- Filters and Actions -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">تصفية الإشعارات</h6>
+                        </div>
+                        <div class="card-body py-2">
+                            <form method="get" class="d-flex flex-wrap gap-2">
+                                <!-- Type Filter -->
+                                <select name="type" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                                    <option value="all" {% if filter_type == 'all' %}selected{% endif %}>جميع الأنواع</option>
+                                    {% for type_code, type_name in notification_types %}
+                                    <option value="{{ type_code }}" {% if filter_type == type_code %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+
+                                <!-- Read Status Filter -->
+                                <select name="read" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                                    <option value="all" {% if filter_read == 'all' %}selected{% endif %}>الكل</option>
+                                    <option value="unread" {% if filter_read == 'unread' %}selected{% endif %}>غير مقروء</option>
+                                    <option value="read" {% if filter_read == 'read' %}selected{% endif %}>مقروء</option>
+                                </select>
+
+                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-filter"></i> تطبيق
+                                </button>
+                                
+                                {% if filter_type != 'all' or filter_read != 'all' %}
+                                <a href="{% url 'notifications' %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times"></i> إزالة التصفية
+                                </a>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="notifications-actions d-flex flex-column gap-2">
+                        {% if unread_count > 0 %}
+                        <form method="post" action="{% url 'mark_all_read' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                                <i class="fas fa-check-double"></i> تعليم الكل كمقروء
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        <form method="post" action="{% url 'clear_old_notifications' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning btn-sm w-100" 
+                                    onclick="return confirm('هل تريد حذف الإشعارات القديمة (أكثر من 30 يوم)؟')">
+                                <i class="fas fa-broom"></i> حذف القديمة
+                            </button>
+                        </form>
+                        
+                        <form method="post" action="{% url 'clear_all_notifications' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-sm w-100" 
+                                    onclick="return confirm('هل أنت متأكد من حذف جميع الإشعارات؟')">
+                                <i class="fas fa-trash"></i> حذف الكل
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications List -->
+            <div class="notifications-list">
+                {% for notification in notifications %}
+                <div class="card mb-3 notification-item {% if not notification.read %}border-primary{% endif %}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-1 text-center">
+                                <!-- Notification Type Icon -->
+                                {% if notification.notification_type == 'comment' %}
+                                    <i class="fas fa-comment text-primary fa-lg"></i>
+                                {% elif notification.notification_type == 'like' %}
+                                    <i class="fas fa-heart text-danger fa-lg"></i>
+                                {% elif notification.notification_type == 'reply' %}
+                                    <i class="fas fa-reply text-info fa-lg"></i>
+                                {% elif notification.notification_type == 'follow' %}
+                                    <i class="fas fa-user-plus text-success fa-lg"></i>
+                                {% else %}
+                                    <i class="fas fa-bell text-secondary fa-lg"></i>
+                                {% endif %}
+                                
+                                {% if not notification.read %}
+                                <div class="unread-indicator bg-primary rounded-circle mt-1" 
+                                     style="width: 8px; height: 8px; margin: 0 auto;"></div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-8">
+                                <div class="notification-content">
+                                    <p class="mb-2 {% if not notification.read %}fw-bold{% endif %}">
+                                        {{ notification.message }}
+                                    </p>
+                                    
+                                    {% if notification.related_user %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-user"></i> {{ notification.related_user.username }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-3 text-end">
+                                <div class="notification-meta">
+                                    <div class="mb-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock"></i>
+                                            {{ notification.created_at|timesince }} مضت
+                                        </small>
+                                        
+                                        {% if notification.read and notification.read_at %}
+                                        <br>
+                                        <small class="text-success">
+                                            <i class="fas fa-check"></i> قُرئ في {{ notification.read_at|timesince }} مضت
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="notification-actions d-flex flex-column gap-1">
+                                        {% if notification.action_url %}
+                                        <a href="{% url 'mark_notification_read' notification.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> عرض
+                                        </a>
+                                        {% elif notification.related_review %}
+                                        <a href="{% url 'product_detail' notification.related_review.product.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> عرض المراجعة
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if not notification.read %}
+                                        <button class="btn btn-sm btn-success mark-read-btn" 
+                                                data-notification-id="{{ notification.id }}">
+                                            <i class="fas fa-check"></i> تعليم كمقروء
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-bell-slash fa-3x mb-3 text-muted"></i>
+                    <h5>لا توجد إشعارات</h5>
+                    <p>ستظهر الإشعارات هنا عندما يتفاعل الآخرون مع مراجعاتك</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if notifications.has_other_pages %}
+            <nav aria-label="صفحات الإشعارات" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if notifications.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}{% if filter_read != 'all' %}&read={{ filter_read }}{% endif %}">
+                            الأولى
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ notifications.previous_page_number }}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}{% if filter_read != 'all' %}&read={{ filter_read }}{% endif %}">
+                            السابقة
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            صفحة {{ notifications.number }} من {{ notifications.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if notifications.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ notifications.next_page_number }}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}{% if filter_read != 'all' %}&read={{ filter_read }}{% endif %}">
+                            التالية
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ notifications.paginator.num_pages }}{% if filter_type != 'all' %}&type={{ filter_type }}{% endif %}{% if filter_read != 'all' %}&read={{ filter_read }}{% endif %}">
+                            الأخيرة
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
         </div>
-        {% empty %}
-        <div class="alert alert-info">لا توجد إشعارات</div>
-        {% endfor %}
     </div>
 </div>
+
+<!-- AJAX for Mark as Read -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark individual notification as read
+    document.querySelectorAll('.mark-read-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const notificationId = this.dataset.notificationId;
+            
+            fetch(`/notifications/mark-read/${notificationId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove unread styling
+                    const notificationCard = this.closest('.notification-item');
+                    notificationCard.classList.remove('border-primary');
+                    notificationCard.querySelector('.fw-bold')?.classList.remove('fw-bold');
+                    notificationCard.querySelector('.unread-indicator')?.remove();
+                    
+                    // Remove the button
+                    this.remove();
+                    
+                    // Update unread count if exists
+                    const badge = document.querySelector('.badge.bg-danger');
+                    if (badge) {
+                        const currentCount = parseInt(badge.textContent);
+                        if (currentCount > 1) {
+                            badge.textContent = currentCount - 1;
+                        } else {
+                            badge.remove();
+                        }
+                    }
+                    
+                    // Show success message
+                    showToast('تم تعليم الإشعار كمقروء', 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('حدث خطأ أثناء تعليم الإشعار', 'error');
+            });
+        });
+    });
+});
+
+// Simple toast notification function
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'}"></i>
+        ${message}
+        <button type="button" class="btn-close float-end" onclick="this.parentElement.remove()"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>
+
+<style>
+.notification-item {
+    transition: all 0.3s ease;
+}
+
+.notification-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.notification-item.border-primary {
+    border-left: 4px solid #0d6efd !important;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+.unread-indicator {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.notifications-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.notifications-actions .btn:hover {
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .notification-item .row > div {
+        margin-bottom: 10px;
+    }
+    
+    .notification-item .col-1,
+    .notification-item .col-8,
+    .notification-item .col-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .notification-item .col-1 {
+        flex: 0 0 auto;
+        max-width: 50px;
+        float: left;
+    }
+    
+    .notification-item .col-8 {
+        flex: 1;
+        max-width: calc(100% - 50px);
+        float: right;
+    }
+    
+    .notification-item .col-3 {
+        clear: both;
+        text-align: start !important;
+    }
+}
+</style>
 {% endblock %}
