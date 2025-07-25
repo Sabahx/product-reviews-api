@@ -19,6 +19,7 @@
 -تحليلات وإحصائيات متقدمة
 
 
+<<<<<<< HEAD
 ### الميزات الرئيسية
 #### للمستخدمين العاديين
 - إنشاء حساب مستخدم جديد
@@ -36,6 +37,25 @@
 - عرض المراجعات التي تحتوي على محتوى مسيء
 - تصدير بيانات المراجعات بتنسيقات مختلفة (CSV, Excel)
 - عرض التقارير والإحصائيات
+=======
+**##الميزات الرئيسية**
+**##للمستخدمين العاديين**
+-إنشاء حساب مستخدم جديد
+-إضافة مراجعات وتقييمات للمنتجات
+-التعليق على المراجعات
+-التصويت على المراجعات (مفيد/غير مفيد)
+-الإبلاغ عن المراجعات غير الملائمة
+-تلقي الإشعارات
+-عرض التحليلات والإحصائيات
+
+**##للمدراء**
+-إدارة المنتجات
+-إدارة الكلمات المحظورة
+-الموافقة على المراجعات أو إخفائها
+-عرض المراجعات التي تحتوي على محتوى مسيء
+-تصدير بيانات المراجعات بتنسيقات مختلفة (CSV, Excel)
+-عرض التقارير والإحصائيات
+>>>>>>> 614e8c0 (Create README.md)
 
 
 
@@ -49,6 +69,7 @@
 ## التنصيب
 
 1-نسخ المشروع
+<<<<<<< HEAD
    ``` bash
    git clone https://github.com/Sabahx/product-reviews-api
    cd product-reviews-api
@@ -71,3 +92,23 @@ python manage.py migrate
 ``` bash
 python manage.py runserver
 ```
+=======
+   ```bash
+   git clone https://github.com/Sabahx/product-reviews-api
+   cd product-reviews-api
+2-إنشاء بيئة افتراضية وتثبيت المتطلبات:
+
+'''bash
+python -m venv venv
+venv\Scripts\activate    
+pip install -r requirements.txt
+3-تنفيذ migrations:
+
+'''bash
+python manage.py makemigrations
+python manage.py migrate
+4-تشغيل الخادم:
+
+'''bash
+python manage.py runserver
+>>>>>>> 614e8c0 (Create README.md)
