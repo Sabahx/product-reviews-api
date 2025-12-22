@@ -71,3 +71,57 @@ python manage.py migrate
 ``` bash
 python manage.py runserver
 ```
+
+# Product Reviews & Ratings API
+
+A production-ready REST API for managing product reviews and star ratings, built with a strong focus on **trust, moderation, and data integrity**.  
+The system enables users to submit reviews and ratings while providing administrators with tools to moderate content, ensure quality, and extract business insights.
+
+---
+
+## Purpose
+
+This project demonstrates how a real-world review platform backend can be designed to:
+- Ensure **reliable and trustworthy user feedback**
+- Support **moderation workflows** for safe content
+- Maintain **data integrity and platform credibility**
+- Enable **analytics-driven decision making**
+
+---
+
+## Core Features
+
+### User Capabilities
+- User registration and authentication using JWT
+- Submit product reviews and star ratings (1–5)
+- Comment on reviews
+- Vote on reviews (helpful / not helpful)
+- Report inappropriate or misleading reviews
+- Receive notifications related to review activity
+
+### Admin Capabilities
+- Product management
+- Review moderation (approve, hide, reject)
+- Content safety via blocked/banned words
+- Monitor flagged and reported reviews
+- Analytics and reporting
+- Export review data (CSV / Excel)
+
+---
+
+## Tech Stack
+
+- **Backend:** Django, Django REST Framework  
+- **Authentication:** JWT (SimpleJWT)  
+- **Database:** PostgreSQL / SQLite  
+- **Language:** Python  
+
+---
+
+## Installation & Setup
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/Sabahx/product-reviews-api.git
+cd product-reviews-api
+
